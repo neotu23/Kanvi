@@ -1,0 +1,21 @@
+{
+  "isValid": false,
+  "source": "tests/fixtures/overlap.html",
+  "violations": [
+    {
+      "key": "line-height",
+      "message": "行间距（line-height）设置较小，多行文本可能存在重叠，请核实阅读效果是否正常（参考文档 #2.3.2 line-height-overlapping）",
+      "items": [
+        {
+          "outerHTML": "<p style=\"font-size:20px;line-height:1px\" data-nest-level=\"3\">第一行<br data-nest-level=\"4\">第二行<br data-nest-level=\"4\">第三行</p>",
+          "paragraphIndex": "0"
+        },
+        {
+          "outerHTML": "<p style=\"font-size:20px;line-height:1px\" data-nest-level=\"3\">第一行<br data-nest-level=\"4\">第二行<br data-nest-level=\"4\">第三行</p>",
+          "paragraphIndex": 0,
+          "rules": "行高小于字体大小，且存在多行文本，可能导致文字重叠（实测）"
+        }
+      ]
+    }
+  ]
+}

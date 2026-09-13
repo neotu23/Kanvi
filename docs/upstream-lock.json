@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-09-14",
+  "projects": [
+    {
+      "id": "wechat-spec",
+      "url": "https://github.com/wechatjs/verify-article-structure-spec.git",
+      "license": "MIT",
+      "commit": "fa69e37341c86bfec4c8c533845910511e534c0c"
+    },
+    {
+      "id": "wemd",
+      "url": "https://github.com/tenngoxars/WeMD.git",
+      "license": "MIT",
+      "commit": "0d0b0d0683d04374295bf53ce15cd9e544fc8cbe"
+    }
+  ]
+}
