@@ -1,0 +1,5 @@
+.diary { padding: 12px; color: #333333; }
+.diary h2 { border-left: 3px solid #8a6f59; padding-left: 12px; font-size: 20px; line-height: 1.6; margin: 18px 0 28px; }
+.diary p { font-size: 16px; line-height: 1.8; margin: 18px 0; }
+.diary blockquote { margin: 28px 0; padding: 2px 16px; background-color: #f4f1ed; border-left: 2px solid #b6a28f; }
+.diary blockquote p { color: #65574a; font-size: 15px; }
