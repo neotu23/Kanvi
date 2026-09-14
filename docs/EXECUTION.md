@@ -6,14 +6,14 @@
 
 - [x] 确认需求与本地运行范围。
 - [x] 编写设计、执行路线和第一阶段计划。
-- [ ] 阶段 1：验证基础排版、官方检测和富文本复制。
+- [x] 阶段 1：基础代码、自动化功能测试、真实检查器集成与生产构建完成。按用户最新要求，公众号实测与浏览器模拟不纳入本次验收。
 - [ ] 阶段 2：实现参考文章读取与设计分析。
 - [ ] 阶段 3：实现可复用模板与样例验证。
 - [ ] 阶段 4：实现 Markdown 原文保真套版。
 - [ ] 阶段 5：实现 AI 模板匹配。
 - [ ] 阶段 6：完成本地产品界面与交付。
 
-所有未勾选项均未实现。阶段 1 开始前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第一阶段计划](superpowers/plans/2026-09-13-foundation-validation.md)。
+阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–6 未实现。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第一阶段计划](superpowers/plans/2026-09-13-foundation-validation.md)。
 
 ## 阶段 1：验证输出、检查和复制链路
 
@@ -26,6 +26,8 @@
 **决策：** WeMD 可独立使用则复用必要核心；不适合时采用 Juice 加具名适配规则。检查器运行失败时报告具体障碍，不用第三方主题替代官方检测。
 
 ## 阶段 2：参考读取与设计分析
+
+具体实施计划：[参考读取与设计分析](superpowers/plans/2026-09-14-reference-analysis.md)。
 
 **计划文件：** `src/features/references/{fetch-reference,extract-article,reference-schema}.ts`、`src/features/ai/{client,design-analysis}.ts`、`src/app/api/references/route.ts`。
 
@@ -105,4 +107,4 @@
 
 每个可独立验收的任务形成提交；提交前运行与变更相关的检查。阶段完成时更新本文进度、对应计划和验证报告，注明哪些是实际执行证据。用户数据、参考快照、密钥及浏览器状态不能提交。
 
-当前初始化只建立本地 Git 历史。远程仓库、推送和部署不属于本次范围。
+已按用户授权创建私有 GitHub 仓库并推送文档。基础实现通过核查后合入 main 并推送；不公开部署。
