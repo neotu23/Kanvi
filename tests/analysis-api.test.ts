@@ -33,17 +33,20 @@ it('通过导入到模型协议校验再落盘的链路，重试保存独立草�
   await writeFile(join(root, 'analyses', snapshot.id, record.id, 'analysis.json'), '{}');
   await expect(analyses.list(snapshot)).rejects.toMatchObject({ code: 'analysis-read' });
 });
-it('拒绝跨站分析，未配置时不制造结果，取消后释放并发占用', async () => {
+it('拒绝跨站分析，未配置时不制造结果，失败后释放并发占用', async () => {
   const { refs, analyses, snapshot } = await setup();
   const api = createAnalysisHandlers(refs, analyses, (s, options) => analyzeDesign(s, { ...options, config: { apiKey: '', model: 'deepseek-flash' } }));
   expect((await api.POST(request('POST', 'https://evil.test'), snapshot.id)).status).toBe(403);
   expect((await api.POST(request(), snapshot.id)).status).toBe(503);
   expect((await analyses.list(snapshot)).analyses).toEqual([]);
   let release: () => void = () => {};
-  const busy = createAnalysisHandlers(refs, analyses, async () => { await new Promise<void>(resolve => { release = resolve; }); throw Error('controlled failure'); });
+  let started: () => void = () => {};
+  const entered = new Promise<void>(resolve => { started = resolve; });
+  const busy = createAnalysisHandlers(refs, analyses, async () => { started(); await new Promise<void>(resolve => { release = resolve; }); throw Error('controlled failure'); });
   const running = busy.POST(request(), snapshot.id);
   // Second request is rejected before body reads or filesystem work.
   expect((await busy.POST(request(), snapshot.id)).status).toBe(409);
-  await new Promise(resolve => setTimeout(resolve, 20)); release();
+  await entered; release();
   expect((await running).status).toBe(500);
+  expect((await busy.POST(request(), '../invalid')).status).toBe(400);
 });

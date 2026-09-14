@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { ReferenceError, referenceSummary, type ReferenceSnapshot, type ReferenceSummary } from './contracts';
 import { extractArticle } from './extract-article';
@@ -9,9 +9,23 @@ export function validateId(id: string): void {
 }
 function code(error: unknown): string | undefined { return (error as NodeJS.ErrnoException)?.code; }
 
+function validateSnapshot(saved: ReferenceSnapshot, id: string): ReferenceSnapshot {
+  if (!saved || saved.version !== 1 || typeof saved.sourceHtml !== 'string' || typeof saved.fetchedAt !== 'string' || !Number.isFinite(Date.parse(saved.fetchedAt))) throw new Error('invalid snapshot');
+  if (saved.sourceUrl !== null && (typeof saved.sourceUrl !== 'string' || validateReferenceUrl(saved.sourceUrl).href !== saved.sourceUrl)) throw new Error('invalid source');
+  const rebuilt = extractArticle(saved.sourceHtml, saved.sourceUrl);
+  for (const key of ['id', 'contentHash', 'title', 'articleHtml', 'styleEvidence', 'diagnostics'] as const) {
+    if (JSON.stringify(saved[key]) !== JSON.stringify(rebuilt[key])) throw new Error('snapshot mismatch');
+  }
+  if (saved.id !== id) throw new Error('id mismatch');
+  return { ...rebuilt, fetchedAt: saved.fetchedAt };
+}
+
 /** Renaming a complete nonempty directory publishes a record without replacing an existing one. */
 export async function publishRecord(root: string, id: string, filename: string, value: unknown): Promise<boolean> {
   await mkdir(root, { recursive: true, mode: 0o700 });
+  // Preserve damaged/empty existing entries for diagnosis as well as complete records.
+  try { await lstat(join(root, id)); return false; }
+  catch (error) { if (code(error) !== 'ENOENT') throw error; }
   const temp = await mkdtemp(join(root, '.pending-'));
   try {
     await writeFile(join(temp, filename), JSON.stringify(value), { encoding: 'utf8', mode: 0o600, flag: 'wx' });
@@ -24,27 +38,25 @@ export class ReferenceRepository {
   constructor(private root = resolve('data/references')) {}
   async save(snapshot: ReferenceSnapshot): Promise<{ created: boolean; snapshot: ReferenceSnapshot }> {
     validateId(snapshot.id);
+    let checked: ReferenceSnapshot;
+    try { checked = validateSnapshot(snapshot, snapshot.id); }
+    catch { throw new ReferenceError('invalid-snapshot', '参考数据不完整，未写入本地存储。', 422); }
     let created;
-    try { created = await publishRecord(this.root, snapshot.id, 'snapshot.json', snapshot); }
+    try { created = await publishRecord(this.root, snapshot.id, 'snapshot.json', checked); }
     catch { throw new ReferenceError('storage-write', '参考保存失败，请检查本地数据目录权限和磁盘空间。', 500); }
     return { created, snapshot: await this.get(snapshot.id) };
   }
   async get(id: string): Promise<ReferenceSnapshot> {
     validateId(id);
+    const directory = join(this.root, id);
     try {
-      const path = join(this.root, id, 'snapshot.json');
+      if (!(await stat(directory)).isDirectory()) throw new Error('invalid record directory');
+      const path = join(directory, 'snapshot.json');
       if ((await stat(path)).size > 16 * 1024 * 1024) throw new Error('oversized snapshot');
       const saved = JSON.parse(await readFile(path, 'utf8')) as ReferenceSnapshot;
-      if (saved.version !== 1 || typeof saved.sourceHtml !== 'string' || typeof saved.fetchedAt !== 'string' || !Number.isFinite(Date.parse(saved.fetchedAt))) throw new Error('invalid snapshot');
-      if (saved.sourceUrl !== null && (typeof saved.sourceUrl !== 'string' || validateReferenceUrl(saved.sourceUrl).href !== saved.sourceUrl)) throw new Error('invalid source');
-      const rebuilt = extractArticle(saved.sourceHtml, saved.sourceUrl);
-      for (const key of ['id', 'contentHash', 'title', 'articleHtml', 'styleEvidence', 'diagnostics'] as const) {
-        if (JSON.stringify(saved[key]) !== JSON.stringify(rebuilt[key])) throw new Error('snapshot mismatch');
-      }
-      if (saved.id !== id) throw new Error('id mismatch');
-      return { ...rebuilt, fetchedAt: saved.fetchedAt };
+      return validateSnapshot(saved, id);
     } catch (error) {
-      if (code(error) === 'ENOENT') throw new ReferenceError('not-found', '没有找到这份本地参考。', 404);
+      if (code(error) === 'ENOENT' && (error as NodeJS.ErrnoException).path === directory) throw new ReferenceError('not-found', '没有找到这份本地参考。', 404);
       throw new ReferenceError('storage-read', '本地参考读取失败或记录已损坏，未使用不完整数据。', 500);
     }
   }

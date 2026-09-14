@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
@@ -27,4 +27,19 @@ it('拒绝路径穿越、无效 ID、损坏记录，并区别存储失败', asyn
   await expect(repository.get(a.id)).rejects.toMatchObject({ code: 'storage-read' });
   const file = join(dir, 'not-a-directory'); await writeFile(file, 'x');
   await expect(new ReferenceRepository(file).save(a)).rejects.toMatchObject({ code: 'storage-write' });
+});
+it('记录目录存在但文件缺失时报告损坏，重新导入不能静默覆盖', async () => {
+  const dir = await directory(); const repository = new ReferenceRepository(dir);
+  const snapshot = extractArticle('<div id="js_content">原文</div>', null);
+  await mkdir(join(dir, snapshot.id));
+  await expect(repository.get(snapshot.id)).rejects.toMatchObject({ code: 'storage-read' });
+  await expect(repository.save(snapshot)).rejects.toMatchObject({ code: 'storage-read' });
+  expect(await readdir(join(dir, snapshot.id))).toEqual([]);
+});
+it('不完整输入在发布前被拒绝，不占用 ID 或妨碍正确快照保存', async () => {
+  const dir = await directory(); const repository = new ReferenceRepository(dir);
+  const snapshot = extractArticle('<div id="js_content">原文</div>', null);
+  await expect(repository.save({ ...snapshot, articleHtml: '<p>篡改</p>' })).rejects.toMatchObject({ code: 'invalid-snapshot' });
+  expect(await readdir(dir)).toEqual([]);
+  expect((await repository.save(snapshot)).created).toBe(true);
 });
