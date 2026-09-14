@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "tags": ["日常记录", "自然留白"],
+  "textStyles": [{ "role": "body", "evidenceIds": ["e2"], "basis": "observed", "reason": "正文声明使用 16px 字号。", "properties": { "fontSize": 16, "color": "#445544", "lineHeight": 1.8 } }],
+  "regions": [{ "name": "正文区", "role": "body", "evidenceIds": ["e1", "e2"], "basis": "observed", "reason": "单列正文结构。" }],
+  "estimates": [{ "description": "实际字体随设备变化，尚未测量。", "evidenceIds": ["e2"] }],
+  "unsupported": []
+}
