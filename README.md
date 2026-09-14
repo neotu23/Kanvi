@@ -22,7 +22,7 @@ npm run setup:checker
 npm run dev
 ```
 
-打开终端显示的本地地址，默认 `http://127.0.0.1:3000`。本次交付预览使用 `http://127.0.0.1:3210`。
+打开终端显示的本地地址，默认 `http://127.0.0.1:3000`。开发期间的临时预览服务已停止；需要运行时使用上述启动命令。
 
 `npm ci` 同时安装项目内 Node 24.21.0；npm 脚本优先使用该版本，不替换系统 Node。`setup:checker` 下载固定上游源码，使用已提交的依赖锁文件，不自动下载 Chromium。macOS 默认使用 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`；其他安装位置请设置 `PUPPETEER_EXECUTABLE_PATH` 后再启动。
 
