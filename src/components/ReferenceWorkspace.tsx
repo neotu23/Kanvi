@@ -89,7 +89,7 @@ export function ReferenceWorkspace() {
     await run('正在调用 DeepSeek 分析设计…', async () => {
       const data = await api<{ analysis: AnalysisRecord }>(`/api/references/${selected.id}/analysis`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       setAnalyses(items => [data.analysis, ...items]); setActiveAnalysis(data.analysis.id);
-      setNotice('设计草稿已保存。模板生成与样例规则检测将在下一阶段接入。');
+      setNotice('设计草稿已保存。可以继续制作模板并检测样例。');
     });
   }
   const analysis = analyses.find(item => item.id === activeAnalysis);
@@ -135,7 +135,12 @@ export function ReferenceWorkspace() {
             <label className="field-label">分析记录<select value={activeAnalysis ?? ''} disabled={Boolean(busy)} onChange={e => setActiveAnalysis(e.target.value)}>{[...analyses].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map(item => <option key={item.id} value={item.id}>{date(item.createdAt)} · 设计草稿 · {item.id.slice(0, 8)}</option>)}</select></label>
             {analysisCursor && <button className="text-button" disabled={Boolean(busy)} onClick={() => run('正在读取更多分析…', async () => { const data = await api<AnalysisPage>(`/api/references/${reference.id}/analysis?after=${analysisCursor}`); setAnalyses(items => [...items, ...data.analyses.filter(item => !items.some(old => old.id === item.id))]); setAnalysisCursor(data.nextCursor); })}>加载更多分析记录</button>}
             {analysis && <>
-              <p className="draft-label">设计草稿 · 尚未生成模板或进行规则检测</p>
+              <p className="draft-label">设计草稿 · 可以另存为模板版本</p>
+              <button className="primary" disabled={Boolean(busy)} onClick={() => run('正在制作模板…', async () => {
+                const data = await api<{ record: { templateId: string; version: string } }>('/api/templates', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ referenceId: reference.id, analysisId: analysis.id }) });
+                window.location.assign(`/templates?template=${data.record.templateId}&version=${data.record.version}`);
+              })}>制作模板 <span aria-hidden="true">→</span></button>
+              <p className="local-note">使用当前分析中的文字样式生成模板草稿，之后运行样例规则检测。</p>
               <div className="design-tags">{analysis.design.tags.map((tag, index) => <span key={index}>{tag}</span>)}</div>
               <h3>文字样式</h3>{analysis.design.textStyles.map((style, index) => <div className="design-section" key={index}>
                 <h4>{roles[style.role]} <small>{style.basis === 'observed' ? '模型引用来源' : '模型估计'}</small></h4><p>{style.reason}</p>

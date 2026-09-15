@@ -1,8 +1,9 @@
 import type { CheckIssue } from '../validation/normalize-report';
 import { nodes,validateTemplate,fail,object,type TemplateDefinition } from './schema';
 export interface TemplatePatch {nodeId:string;property:'lineHeight';value:number}
+export function hasInlineFragments(issue:CheckIssue):boolean{return issue.rule==='line-height'&&/<(?:strong|em|span|b|i)\b/i.test(issue.outerHTML??'');}
 function target(issue:CheckIssue):string|null {
- if(issue.rule!=='line-height'||!issue.outerHTML)return null;
+ if(issue.rule!=='line-height'||!issue.outerHTML||hasInlineFragments(issue))return null;
  const opening=/^<[a-z][a-z0-9]*\b[^>]*>/i.exec(issue.outerHTML)?.[0];if(!opening)return null;
  const classes=/\bclass=["']([^"']*)["']/.exec(opening)?.[1].split(/\s+/)??[];
  const ids=classes.filter(c=>/^kn-[a-z][a-z0-9-]{0,39}$/.test(c));return ids.length===1?ids[0].slice(3):null;

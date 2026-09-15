@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { mkdir,readFile,writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { TemplateRepository } from '../src/features/templates/repository';
+import { templateFromAnalysis } from '../src/features/templates/from-analysis';
+import { runTemplateCheck } from '../src/features/templates/workflow';
+import { analyzeDesign } from '../src/features/ai/design-analysis';
+import { extractArticle } from '../src/features/references/extract-article';
+import { analysisFixture } from '../tests/fixtures/template-source';
+const root=resolve('artifacts/template-validation',new Date().toISOString().replace(/[:.]/g,'-'));
+const repository=new TemplateRepository(root);
+// Preserve the rich template intact: the pinned upstream engine counts inline fragments as lines.
+const richVersion=await repository.create(templateFromAnalysis(analysisFixture()));
+const rich=await runTemplateCheck(repository,richVersion,{autoRepair:true});
+assert.equal(rich.status,'needs-fix');assert.equal(rich.rounds.length,1);
+assert.ok(rich.attempt!.artifact.bodyHtml.includes('<strong'));
+assert.ok(rich.check!.issues.some(i=>i.rule==='line-height'));
+console.log('Rich template retains upstream diagnostic:',rich.status);
+// A separate authored reference contains only paragraphs. It is not a stripped rich template.
+const snapshot=extractArticle('<div id="js_content"><p style="font-size:16px;color:#445544;line-height:1.8">这是只含正文的自写参考。</p></div>',null);
+const design=JSON.parse(await readFile('tests/fixtures/design-analysis.json','utf8'));
+const analysis=await analyzeDesign(snapshot,{config:{apiKey:'controlled-test-only',model:'fixture'},transport:async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(design)}}]})});
+const plainVersion=await repository.create(templateFromAnalysis(analysis));
+const plain=await runTemplateCheck(repository,plainVersion);
+console.log('Paragraph template:',plain.status,plain.check?.issues);
+assert.equal(plain.status,'rule-passed');
+assert.equal((await new TemplateRepository(root).detail(plain.record.templateId,plain.record.version)).status,'rule-passed');
+await mkdir(resolve('artifacts'),{recursive:true});
+await writeFile(resolve('artifacts/template-integration.json'),JSON.stringify({checkedAt:new Date().toISOString(),root,rich,plain},null,2));
+console.log('Template integration complete:',root);

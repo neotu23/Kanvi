@@ -1,4 +1,4 @@
-import { validateDesignProperties, type DesignProperties } from '../ai/schema';
+import { validateDesignProperties, type DesignProperties, type DesignRole } from '../ai/schema';
 import { ReferenceError } from '../references/contracts';
 export type BlockKind='heading'|'body'|'quote'|'list'|'divider';
 export type Node=ElementNode|{slot:'blocks'|'text'}|{repeat:'items'|'paragraphs';child:ElementNode};
@@ -7,6 +7,7 @@ export interface TemplateDefinition {
  schemaVersion:1;name:string;tags:string[];
  source:{referenceId:string;referenceHash:string;analysisId:string};
  evidence:Record<string,string[]>;notes:string[];
+ syntheticNodes:string[];regions:Array<{role:DesignRole;evidenceIds:string[];nodeIds:string[]}>;
  root:ElementNode;blocks:Partial<Record<BlockKind,ElementNode>>;emphasis?:ElementNode;
 }
 export const kinds:BlockKind[]=['heading','body','quote','list','divider'];
@@ -20,7 +21,7 @@ function label(value:unknown,max=200):string {if(typeof value!=='string'||!value
 const tags=['section','div','p','span','h1','h2','h3','h4','h5','h6','strong','em','blockquote','ul','ol','li','hr','br'];
 const inlineTags=['span','strong','em','br'];
 export function validateTemplate(value:unknown):TemplateDefinition {
- const t=object(value,['schemaVersion','name','tags','source','evidence','notes','root','blocks','emphasis']);
+ const t=object(value,['schemaVersion','name','tags','source','evidence','notes','root','blocks','emphasis','syntheticNodes','regions']);
  if(t.schemaVersion!==1)fail();
  const source=object(t.source,['referenceId','referenceHash','analysisId']);
  if(typeof source.referenceId!=='string'||!/^[a-f0-9]{64}$/.test(source.referenceId)||source.referenceHash!==source.referenceId||typeof source.analysisId!=='string'||!uuid.test(source.analysisId))fail('模板来源记录无效。');
@@ -51,12 +52,15 @@ export function validateTemplate(value:unknown):TemplateDefinition {
  const root=element(t.root,0);shape(root,'root');
  const rawBlocks=object(t.blocks,kinds);if(!rawBlocks.body)fail('模板必须支持正文。');
  const blocks:TemplateDefinition['blocks']={};
- for(const kind of kinds)if(rawBlocks[kind]){blocks[kind]=element(rawBlocks[kind],0);shape(blocks[kind]!,kind);}
+ for(const kind of kinds)if(kind in rawBlocks){blocks[kind]=element(rawBlocks[kind],0);shape(blocks[kind]!,kind);}
  const emphasis=t.emphasis===undefined?undefined:element(t.emphasis,0);if(emphasis){shape(emphasis,'emphasis');if(!['strong','em','span'].includes(emphasis.tag))fail();}
  const ev=object(t.evidence,[...ids]);const evidence:Record<string,string[]>={};
- for(const [id,list]of Object.entries(ev)){if(!Array.isArray(list)||list.length>40||!list.every(x=>typeof x==='string'&&/^e[1-9]\d*$/.test(x)))fail();evidence[id]=[...list];}
+ for(const [id,list]of Object.entries(ev)){if(!Array.isArray(list)||!list.length||list.length>40||!list.every(x=>typeof x==='string'&&/^e[1-9]\d*$/.test(x)))fail();evidence[id]=[...list];}
+ if(Object.keys(evidence).length!==ids.size)fail('每个模板节点都必须保留来源证据。');
+ if(!Array.isArray(t.syntheticNodes)||!t.syntheticNodes.every(x=>typeof x==='string'&&ids.has(x))||!Array.isArray(t.regions)||t.regions.length>30)fail();
+ const regions=t.regions.map(raw=>{const r=object(raw,['role','evidenceIds','nodeIds']);if(!['container','heading','body','quote','list','divider','emphasis'].includes(r.role as string)||!Array.isArray(r.evidenceIds)||!r.evidenceIds.length||r.evidenceIds.length>40||!r.evidenceIds.every(x=>typeof x==='string'&&/^e[1-9]\d*$/.test(x))||!Array.isArray(r.nodeIds)||r.nodeIds.length>200||!r.nodeIds.every(x=>typeof x==='string'&&ids.has(x)))fail();return {role:r.role as DesignRole,evidenceIds:r.evidenceIds as string[],nodeIds:r.nodeIds as string[]};});
  if(!Array.isArray(t.tags)||t.tags.length<1||t.tags.length>8||!Array.isArray(t.notes)||t.notes.length>60)fail();
- return {schemaVersion:1,name:label(t.name,80),tags:t.tags.map(x=>label(x,30)),source:source as TemplateDefinition['source'],evidence,notes:t.notes.map(x=>label(x,400)),root,blocks,...(emphasis?{emphasis}:{})};
+ return {schemaVersion:1,name:label(t.name,80),tags:t.tags.map(x=>label(x,30)),source:source as TemplateDefinition['source'],evidence,regions,syntheticNodes:[...t.syntheticNodes] as string[],notes:t.notes.map(x=>label(x,400)),root,blocks,...(emphasis?{emphasis}:{})};
 }
 export function nodes(t:TemplateDefinition):ElementNode[]{const all:ElementNode[]=[];const visit=(n:Node)=>{if('slot'in n)return;if('repeat'in n){visit(n.child);return;}all.push(n);n.children.forEach(visit);};visit(t.root);Object.values(t.blocks).forEach(visit);if(t.emphasis)visit(t.emphasis);return all;}
 export function styleCss(styles:DesignProperties):string {

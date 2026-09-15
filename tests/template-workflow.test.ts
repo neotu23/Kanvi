@@ -48,3 +48,34 @@ it('检查器错误和报告哈希不符不能变成通过；失败重试不占�
  const mismatch=await runTemplateCheck(repository,record,{checker:async()=>({status:'passed',issues:[],htmlHash:'bad',checkerCommit:commit})});expect(mismatch.status).toBe('failed');
  const fixed=await runTemplateCheck(repository,record,{checker:async a=>({status:'passed',issues:[],htmlHash:a.htmlHash,checkerCommit:commit})});expect(fixed.status).toBe('rule-passed');
 });
+it('取消不能因检查器忽略 signal 而写成通过',async()=>{
+ const {repository}=await repo();const record=await repository.create(templateFromAnalysis(analysisFixture()));const controller=new AbortController();
+ const result=await runTemplateCheck(repository,record,{signal:controller.signal,checker:async a=>{controller.abort();return {status:'passed',issues:[],htmlHash:a.htmlHash,checkerCommit:commit};}});
+ expect(result.status).toBe('failed');
+});
+it('带行内片段的疑似误报不触发扩大行高补丁',()=>{
+ const t=templateFromAnalysis(analysisFixture());t.blocks.body!.styles.lineHeight=1;
+ const issue={rule:'line-height',message:'overlap',outerHTML:'<p class="kn-body">原文<strong>强调</strong></p>'};
+ expect(suggestedPatches(t,[issue])).toEqual([]);
+ expect(()=>applyPatches(t,[{nodeId:'body',property:'lineHeight',value:1.8}],[issue])).toThrow();
+});
+it('修正 API 的 JSON 必须引用候选节点，不发送原文；缺少 Key 或无效补丁保留错误',async()=>{
+ const {aiRepair}=await import('../src/features/templates/workflow');
+ const t=templateFromAnalysis(analysisFixture());t.blocks.body!.styles.lineHeight=1;
+ const issues=[{rule:'line-height',message:'original message not sent',outerHTML:'<p class="kn-body">PRIVATE_TEXT</p>'}];
+ const config={apiKey:'test-only-key',model:'fixture'};
+ const response=(patches:unknown)=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({patches})}}]});
+ const patches=await aiRepair(t,issues,undefined,{config,transport:async(_url,init)=>{const body=JSON.parse(init!.body as string);expect(body.messages[1].content).not.toMatch(/PRIVATE_TEXT|SOURCE_AUTHOR/);return response([{nodeId:'body',property:'lineHeight',value:1.8}]);}});
+ expect(patches).toHaveLength(1);
+ await expect(aiRepair(t,issues,undefined,{config,transport:async()=>response([{nodeId:'unknown',property:'lineHeight',value:1.8}])})).rejects.toThrow();
+ await expect(aiRepair(t,issues,undefined,{config:{...config,apiKey:''}})).rejects.toMatchObject({code:'ai-not-configured'});
+});
+it('样例或检测报告被改动后不得使用旧的通过状态',async()=>{
+ const {dir,repository}=await repo();const record=await repository.create(templateFromAnalysis(analysisFixture()));
+ const result=await runTemplateCheck(repository,record,{checker:async a=>({status:'passed',issues:[],htmlHash:a.htmlHash,checkerCommit:commit})});
+ const path=join(dir,record.templateId,record.version,'checks',result.attempt!.id,'result','report.json');
+ const check=JSON.parse(await readFile(path,'utf8'));check.checkerCommit='0'.repeat(40);await writeFile(path,JSON.stringify(check));
+ await expect(repository.detail(record.templateId,record.version)).rejects.toMatchObject({code:'check-read'});
+ const altered=renderTemplate(record.definition,sampleBlocks(record.definition));altered.bodyHtml+='<p>添加</p>';
+ await expect(repository.start(record,altered)).rejects.toMatchObject({code:'sample-mismatch'});
+});

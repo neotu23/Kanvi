@@ -16,6 +16,7 @@ it('设计草稿映射为带证据的自定义样式，不携带来源文章文�
 });
 it('自定义嵌套、重复段落、长标题、强调和列表保真，空可选区域可省略', () => {
  const t=templateFromAnalysis(analysisFixture());
+ t.evidence['custom-wrap']=['e1'];
  t.blocks.body={id:'custom-wrap',tag:'section',styles:{paddingLeft:12},children:[t.blocks.body!]};
  const blocks=sampleBlocks(t);
  blocks.push({id:'same1',kind:'body',content:[{text:'重复文字<&>。'}]},{id:'same2',kind:'body',content:[{text:'重复文字<&>。'}]});
@@ -37,7 +38,7 @@ it('拒绝代码、任意属性、重复内容位置、过深结构和循环引�
  const deep=structuredClone(base); for(let i=0;i<12;i++)deep.root={id:`deep${i}`,tag:'section',styles:{},children:[deep.root]}; expect(()=>validateTemplate(deep)).toThrow();
 });
 it('未知或不支持内容不得静默丢弃，重复 ID 和空正文明确失败', () => {
- const t=templateFromAnalysis(analysisFixture()); delete t.blocks.quote; delete t.evidence.quote;
+ const t=templateFromAnalysis(analysisFixture()); delete t.blocks.quote; delete t.evidence.quote; delete t.evidence['quote-paragraph']; t.syntheticNodes=t.syntheticNodes.filter(id=>!id.startsWith('quote'));
  expect(()=>renderTemplate(t,[{id:'q',kind:'quote',paragraphs:[[{text:'引用'}]]}])).toThrow('不支持');
  expect(()=>renderTemplate(t,[])).toThrow();
  expect(()=>renderTemplate(t,[{id:'x',kind:'body',content:[{text:'一'}]},{id:'x',kind:'body',content:[{text:'二'}]}])).toThrow();
@@ -46,4 +47,11 @@ it('未知或不支持内容不得静默丢弃，重复 ID 和空正文明确失
 it('同一角色多个风格不能静默选择第一个', () => {
  const a=analysisFixture(); a.design.textStyles.push({...a.design.textStyles[0]});
  expect(()=>templateFromAnalysis(a)).toThrow('多个');
+});
+it('所有模板节点都有证据，区域映射保留；缺失映射和显式空渲染器拒绝',()=>{
+ const t=templateFromAnalysis(analysisFixture());
+ expect(t.evidence['quote-paragraph']).toEqual(['e1']);
+ expect(t.regions[0].role).toBe('body');
+ delete t.evidence.body;expect(()=>validateTemplate(t)).toThrow();
+ const empty=templateFromAnalysis(analysisFixture()) as any;empty.blocks.quote=null;expect(()=>validateTemplate(empty)).toThrow();
 });
