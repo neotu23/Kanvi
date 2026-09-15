@@ -3,7 +3,7 @@ import { readBounded } from '../shared/io';
 import { ANALYSIS_SYSTEM_PROMPT } from './schema';
 
 export interface AiConfig { apiKey: string; model: string }
-export interface AiOptions { config?: AiConfig; transport?: typeof fetch; timeoutMs?: number; signal?: AbortSignal }
+export interface AiOptions { config?: AiConfig; transport?: typeof fetch; timeoutMs?: number; signal?: AbortSignal; systemPrompt?: string }
 export function aiConfig(): AiConfig {
   return { apiKey: process.env.DEEPSEEK_API_KEY?.trim() ?? '', model: process.env.DEEPSEEK_MODEL?.trim() || 'deepseek-flash' };
 }
@@ -30,7 +30,7 @@ export async function completeJson(input: string, options: AiOptions = {}): Prom
       method: 'POST', signal, redirect: 'error', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
       body: JSON.stringify({ model: config.model, stream: false, thinking: { type: 'disabled' }, max_tokens: 6000, temperature: 0.2,
-        response_format: { type: 'json_object' }, messages: [{ role: 'system', content: ANALYSIS_SYSTEM_PROMPT }, { role: 'user', content: input }] }),
+        response_format: { type: 'json_object' }, messages: [{ role: 'system', content: options.systemPrompt ?? ANALYSIS_SYSTEM_PROMPT }, { role: 'user', content: input }] }),
     }), cancelled]);
     if (!response.ok) {
       void response.body?.cancel().catch(() => {});

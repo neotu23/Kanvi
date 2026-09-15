@@ -39,9 +39,9 @@ function enumValue<T extends string>(value: unknown, options: readonly T[]): T {
 const roles: DesignRole[] = ['container', 'heading', 'body', 'quote', 'list', 'emphasis', 'divider'];
 const colorKeys = ['color', 'backgroundColor', 'borderColor', 'borderLeftColor'];
 const spacingKeys = ['marginTop', 'marginBottom', 'marginLeft', 'marginRight', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight'];
-function properties(value: unknown): DesignProperties {
+export function validateDesignProperties(value: unknown, allowEmpty = false): DesignProperties {
   const item = object(value, [...colorKeys, ...spacingKeys, 'fontSize', 'lineHeight', 'fontWeight', 'fontFamily', 'textAlign', 'letterSpacing', 'borderWidth', 'borderStyle', 'borderRadius', 'borderLeftWidth', 'borderLeftStyle']);
-  if (!Object.keys(item).length) return fail();
+  if (!allowEmpty && !Object.keys(item).length) return fail();
   for (const [key, val] of Object.entries(item)) {
     if (colorKeys.includes(key)) { if (typeof val !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(val)) fail(); }
     else if (key === 'fontFamily') enumValue(val, ['serif', 'sans-serif', 'monospace']);
@@ -74,7 +74,7 @@ export function validateAnalysis(input: unknown, evidence: StyleEvidence[]): Des
     version: 1, tags: list(data.tags, 8, 1).map(tag => text(tag, 30)),
     textStyles: list(data.textStyles, 20, 1).map(style => {
       const item = object(style, ['role', 'properties', 'evidenceIds', 'basis', 'reason']);
-      return { role: enumValue(item.role, roles), ...basis(item), properties: properties(item.properties) };
+      return { role: enumValue(item.role, roles), ...basis(item), properties: validateDesignProperties(item.properties) };
     }),
     regions: list(data.regions, 30, 1).map(region => {
       const item = object(region, ['name', 'role', 'evidenceIds', 'basis', 'reason']);
