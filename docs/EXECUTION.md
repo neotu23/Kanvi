@@ -8,12 +8,12 @@
 - [x] 编写设计、执行路线和第一阶段计划。
 - [x] 阶段 1：基础代码、自动化功能测试、真实检查器集成与生产构建完成。按用户最新要求，公众号实测与浏览器模拟不纳入本次验收。
 - [x] 阶段 2：参考文章读取与设计分析代码完成；受控功能测试通过，真实链接/API 调用未验证。
-- [ ] 阶段 3：实现可复用模板与样例验证。
+- [x] 阶段 3：模板语法、语义样式映射、版本库、样例检测、受限修正与工作台完成；复杂布局自动重建未实现，上游行距误报保留。
 - [ ] 阶段 4：实现 Markdown 原文保真套版。
 - [ ] 阶段 5：实现 AI 模板匹配。
 - [ ] 阶段 6：完成本地产品界面与交付。
 
-阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2 代码已实现，阶段 3–6 待实施。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第三阶段计划](superpowers/plans/2026-09-15-template-rendering.md)。
+阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–3 代码已实现，阶段 4–6 待实施。第三阶段证据及限制见 [模板报告](validation/2026-09-15-template-rendering.md)。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第四阶段计划](superpowers/plans/2026-09-15-markdown-rendering.md)。
 
 ## 阶段 1：验证输出、检查和复制链路
 
@@ -44,19 +44,21 @@
 
 具体计划：[模板生成与样例检测](superpowers/plans/2026-09-15-template-rendering.md)。
 
-**计划文件：** `src/features/templates/{schema,render,repository,status}.ts`、`src/features/validation/{repair,verification-record}.ts`、`src/app/templates/`。
+**实现文件：** `src/features/templates/{schema,from-analysis,render,repository,repair,workflow,handlers}.ts`、`src/app/api/templates/`、`src/app/templates/`、`src/components/TemplateWorkspace.tsx`。
 
-- [ ] 定义声明式模板结构及版本数据，包含可重复、可省略和支持的内容类型。
-- [ ] 渲染时转义文字，禁止模板执行 JavaScript；测试长标题、空引用和多段重复。
-- [ ] 实现本地原子写入与不可变版本，新版本不继承旧版本的实际验证状态。
-- [ ] 生成覆盖模板元素的样例，调用阶段 1 的检查器。
-- [ ] 程序修正只处理明确规则；AI 返回受限补丁，最多两轮；修正前后比较文字完整性。
-- [ ] 规则通过状态绑定版本、样例哈希和检查器版本；公众号实测登记不在当前范围。
-- [ ] 完成第一套规则检测通过的模板，保留修正历史和最终样例。
+- [x] 定义声明式模板结构及版本数据，包含可重复、可省略和支持的内容类型。
+- [x] 渲染时转义文字，禁止模板执行 JavaScript；测试长标题、空引用和多段重复。
+- [x] 实现本地原子写入与不可变版本，新版本不继承旧版本的实际验证状态。
+- [x] 生成覆盖模板元素的样例，调用阶段 1 的检查器。
+- [x] 程序修正只处理明确规则；AI 返回受限补丁，最多两轮；修正前后比较文字完整性。
+- [x] 规则通过状态绑定版本、样例哈希和检查器版本；公众号实测登记不在当前范围。
+- [x] 完成第一套规则检测通过的模板，保留修正历史和最终样例。
 
 **验收：** 样例规则检测通过后模板可复用；失败或未检测模板不可参与自动匹配。不执行公众号实测或浏览器交互模拟，不承诺完整平台兼容。
 
 ## 阶段 4：Markdown 原文保真套版
+
+具体计划：[Markdown 原文保真套版](superpowers/plans/2026-09-15-markdown-rendering.md)。
 
 **计划文件：** `src/features/articles/{parse-markdown,obsidian,content-integrity,render-article,repository}.ts`、`src/app/generate/`。
 
