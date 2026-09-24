@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "origin": "seed",
+  "createdAt": "2026-09-24",
+  "upstream": {
+    "id": "gzh-beautify-skill",
+    "url": "https://github.com/TwinWrite/gzh-beautify-skill.git",
+    "commit": "9accaf5039f29aade5d8ca315739b42845b11225",
+    "path": "examples/themes/mist-masthead/",
+    "license": "MIT, Copyright (c) 2026 TwinWrite"
+  }
+}
