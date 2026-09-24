@@ -18,7 +18,8 @@
     "theme:remove": "tsx scripts/remove-theme.ts",
     "verify:integration": "tsx scripts/verify-integration.ts",
     "verify:templates": "tsx scripts/verify-templates.ts",
-    "verify:articles": "tsx scripts/verify-articles.ts"
+    "verify:articles": "tsx scripts/verify-articles.ts",
+    "verify:themes": "tsx scripts/verify-themes.ts"
   },
   "dependencies": {
     "cheerio": "1.2.0",

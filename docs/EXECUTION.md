@@ -11,10 +11,10 @@
 - [x] 阶段 3：模板语法、语义样式映射、版本库、样例检测、受限修正与工作台完成；复杂布局自动重建未实现，上游行距误报保留。
 - [x] 阶段 4：Markdown/Obsidian 受限转换、手选套版、本篇检测与历史已实现，语法边界见验证报告。
 - [ ] 阶段 5：实现 AI 模板匹配（2026-09-24 因取消模板主路径而冻结，不再推进；计划文档保留为历史记录）。
-- [ ] 阶段 6：完成本地产品界面与交付（范围随阶段 7 调整，模板页相关条目由主题 skill 界面取代）。
-- [ ] 阶段 7：gzh-beautify 主题 skill 与 AI 直出 HTML（2026-09-24 确定的当前主路径，待实施）。
+- [ ] 阶段 6：完成本地产品界面与交付（模板页相关条目已由阶段 7 取代；备份/恢复与交付检查仍待按新主路径收尾）。
+- [x] 阶段 7：gzh-beautify 主题 skill 与 AI 直出 HTML（2026-09-24 确定的当前主路径，代码、自动测试、集成验证与文档已完成）。
 
-阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–4 代码已实现并被冻结保留；阶段 5 不再推进，阶段 6 范围随阶段 7 调整。最新证据及限制见 [Markdown 报告](validation/2026-09-15-markdown-rendering.md)。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第七阶段计划](superpowers/plans/2026-09-24-theme-skill-rendering.md)。
+阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–4 代码已实现并被冻结保留；阶段 5 不再推进；阶段 7 已实现并通过受控集成验证，最新证据及限制见 [第七阶段报告](validation/2026-09-24-theme-skill.md)。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第七阶段计划](superpowers/plans/2026-09-24-theme-skill-rendering.md)。
 
 ## 阶段 1：验证输出、检查和复制链路
 
@@ -87,35 +87,37 @@
 
 **验收：** 不会推荐未通过规则检测或结构不适配模板；不为模仿风格而改写日记。
 
-## 阶段 6：本地界面与交付（范围随阶段 7 调整）
+## 阶段 6：本地界面与交付（范围已由阶段 7 取代）
 
-> 以下“模板页/推荐模板”条目由阶段 7 的主题 skill 界面取代；备份、恢复与交付检查待阶段 7 完成后按新主路径重写。
+> 阶段 7 已完成主题 skill 界面与交付检查；下列“模板页/推荐模板”条目不再实施。剩余可选项：本地数据路径展示、历史备份/恢复、按新主路径重写交付说明。
 
-**计划文件：** `src/app/{page,layout}.tsx`、`src/app/templates/`、`src/app/generate/`、`src/features/storage/`、`README.md`。
+**计划文件：** `src/app/{page,layout}.tsx`、`src/features/storage/`、`README.md`。
 
-- [ ] 模板页：新增参考、样例预览、检查/修正进度、规则检测记录和模板列表。
-- [ ] 生成页：导入 Markdown、推荐或手选模板、最终预览、复制、下载和历史。
-- [ ] 显示本地数据路径，实现备份/恢复模板及历史；导出不含密钥。
-- [ ] 验证重启后数据存在，权限/磁盘写入失败可理解，不显示误导性保存成功。
-- [ ] 运行类型检查、相关行为测试、生产构建和服务端接口集成测试（不做浏览器交互模拟）。
-- [ ] 更新启动方法、依赖版本、验证边界、已知限制和第三方许可证说明。
+- [x] 主题页（`/styles`）：主题库列表与预览、草案确认、删除、渲染历史。（阶段 7 完成）
+- [x] 生成入口：导入 Markdown、选择主题、预览、复制、下载和历史。（阶段 7 完成）
+- [ ] 显示本地数据路径，实现备份/恢复主题及历史；导出不含密钥。
+- [x] 验证重启后数据存在，权限/磁盘写入失败可理解，不显示误导性保存成功。（阶段 7 覆盖渲染记录与主题库）
+- [x] 运行类型检查、相关行为测试、生产构建和服务端接口集成测试（不做浏览器交互模拟）。（阶段 7 完成）
+- [x] 更新启动方法、依赖版本、验证边界、已知限制和第三方许可证说明。（阶段 7 完成）
 
 **验收：** 一个新用户能按 README 本地启动并完成主流程。无自动发布、云账号系统和完整富文本编辑器。
 
 ## 阶段 7：gzh-beautify 主题 skill 与 AI 直出 HTML
 
-具体计划：[主题 skill 与 AI 直出 HTML](superpowers/plans/2026-09-24-theme-skill-rendering.md)。
+具体计划：[主题 skill 与 AI 直出 HTML](superpowers/plans/2026-09-24-theme-skill-rendering.md)。验证报告：[第七阶段报告](validation/2026-09-24-theme-skill.md)。
 
 固定上游：https://github.com/TwinWrite/gzh-beautify-skill，commit `9accaf5039f29aade5d8ca315739b42845b11225`，MIT（Copyright (c) 2026 TwinWrite）。按现有 `wechat-spec` 模式记入 `docs/upstream-lock.json`，`vendor/` 不提交。
 
-**实现文件：** `themes/<id>/`、`src/features/themes/{library,remove,python,factory,confirm,prompt,render-article,verify-article,repository,handlers}.ts`、`src/app/styles/`、`src/components/ThemeWorkspace.tsx`、`scripts/{render-theme,make-theme,confirm-theme,remove-theme,seed-themes,verify-themes}.ts`、`.gitignore`。
+**实现文件：** `themes/<id>/`、`src/features/themes/{article,library,remove,python,factory,confirm,skill-context,prompt,render-article,verify-article,repository,handlers}.ts`、`src/app/styles/`、`src/components/ThemeWorkspace.tsx`、`scripts/{render-theme,make-theme,confirm-theme,remove-theme,seed-themes,verify-themes}.ts`、`.gitignore`。
 
-- [ ] 固定上游版本，复制 6 套示例主题为种子库并标注 MIT 来源；提供 `theme:seed` 作为种子删除后的恢复路径。
-- [ ] 主题库契约校验、`lint_theme.py` 子进程接入（0 ERROR / 0 WARN）与主题删除（二次确认，不影响渲染历史）。
-- [ ] 主题工厂按 brief 生产草案，lint 通过后进入待确认状态；用户逐个确认气质后重跑 lint 才入库，可丢弃。
-- [ ] 渲染内核：Markdown + 主题 → AI 按 `THEME.md` 填槽产出干净正文 HTML，`validate_article.py --strict` 与官方检查器双校验，原文逐块保真；记录保存主题内容快照，删除主题后历史仍可读。
-- [ ] CLI 与 `/styles` 界面：主题库画廊、工厂草案确认、删除、生成、历史、通过后复制与下载。
-- [ ] 受控自动化测试、双校验集成验证与事实报告。
+- [x] 固定上游版本，复制 6 套示例主题为种子库并标注 MIT 来源；提供 `theme:seed` 作为种子删除后的恢复路径。
+- [x] 主题库契约校验、`lint_theme.py` 子进程接入（0 ERROR / 0 WARN）与主题删除（二次确认，不影响渲染历史）。
+- [x] 主题工厂按 brief 生产草案，lint 通过后进入待确认状态；用户逐个确认气质后重跑 lint 才入库，可丢弃。
+- [x] 渲染内核：Markdown + 主题 → AI 按 `THEME.md` 填槽产出干净正文 HTML，`validate_article.py --strict` 与官方检查器双校验，原文按句子片段逐块保真；记录保存主题内容快照，删除主题后历史仍可读。
+- [x] CLI 与 `/styles` 界面：主题库画廊、工厂草案确认、删除、生成、历史、通过后复制与下载。
+- [x] 受控自动化测试、双校验集成验证与事实报告。
+
+**实际执行（2026-09-24）：** 6 套种子主题整库 lint 0 ERROR / 0 WARN；`npm run verify:themes` 用自写 Markdown + 受控模型响应 + 真实上游脚本 + 真实官方检查器跑通“渲染 → 双校验 → 原文保真 → 工厂确认入库 → 丢弃 → 重启读取”；`npm test` 149 项、`npm run typecheck`、`npm run build`、`npm run check:upstream` 全部通过。**未执行**真实 DeepSeek 调用与公众号实测，不声明实测结论。
 
 **验收：** 自写 Markdown + 已入库主题可产出通过双校验的正文并复制；工厂主题必须经逐个确认才能入库；主题可删除且删除后历史仍可读、种子可恢复；危险结构与改写原文被拒；任一校验失败或故障不显示通过；冻结的参考/模板链路保持原样。公众号实测不纳入本阶段范围。
 
@@ -130,6 +132,11 @@
 | 两轮后仍有问题 | 保留待调整状态 | 前后差异及剩余规则 |
 | 实际粘贴变化 | 修改模板新版本并重测 | 截图、设备和样例哈希 |
 | 不支持的 Markdown | 定位原文，要求明确处理 | 内容类型、源位置 |
+| 主题 lint 未通过（草案） | 草案留在 `data/theme-drafts/` 待检查，不入库 | lint 输出、草案路径 |
+| skill 规范或文章超出发送上限 | 直接报错，不截断后发送 | 上限值与输入大小 |
+| 产物含脚本、事件属性或可执行 URL | 拒绝保存，不静默删除后声称成功 | `rawOutputHash`，不保存 Key |
+| 产物改写或丢失原文 | 判为需修正并列出缺失片段 | Markdown 指纹、缺失片段 |
+| 删除主题 | 二次确认后删除主题包，历史仍可读 | 被删 id、来源类型、时间 |
 
 ## Git 与阶段完成
 

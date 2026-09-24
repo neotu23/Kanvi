@@ -188,3 +188,16 @@ web (/styles, /api/themes/*) ─────────────────
 4. 图片只做“不编造 URL + 提示重新上传”；需要本地图片转公众号素材时另开阶段。（同上）
 5. 冻结链路本阶段不删除；若要移除，另开清理阶段并单独授权。（同上）
 6. `.reasonix/` 已加入 `.gitignore`。（同上）
+
+## 实施记录（2026-09-24）
+
+实现与本文的差异与补充：
+
+1. **草案目录名用主题 id**，不用 UUID：上游 `lint_theme.py` 会校验“目录名与 `theme.json` 的 id 一致”，所以草案落在 `data/theme-drafts/<主题id>/`；同一 id 已有草案时拒绝覆盖，需先确认或丢弃。
+2. **工厂分两次模型调用**：先产出 `theme.json` + `THEME.md`，再据其产出 `preview.html`。理由是单次输出预算（8000 tokens）不足以稳定覆盖三件套（种子包 THEME.md 约 15 KB、preview.html 约 17 KB）。
+3. **原文保真按句子级片段匹配**，不按整块文本：主题骨架会合法地插入章节编号、目录与英文标签，整块匹配会误判；片段级匹配仍能拦住改写、丢段与换序。`added` 字段把结构性新增单独列出来供人工核对。
+4. **主题包额外带 `SOURCE.json` / `SOURCE.md`**：`SOURCE.json` 是机器可读的来源记录（seed/generated 两类，含上游 commit 或许可），`SOURCE.md` 供人阅读。
+5. **`upstream-lock.json` 增加 `required` 字段**：gzh-beautify-skill 标记为 `required:false`，未安装时不影响既有检查链路，只影响主题链路并给出 `npm run setup:checker` 指引。
+6. **删除入口用 `DELETE /api/themes/<id>?confirm=<id>`** 与 `theme:remove --id … --confirm …`，不新增独立路由段。
+7. 新增 `theme:seed`（种子恢复）、`theme:render`、`theme:make`、`theme:confirm`、`theme:remove` 与 `verify:themes`；`verify:themes` 的模型响应是受控 fixture。
+8. 结果与边界见 [第七阶段验证报告](../../validation/2026-09-24-theme-skill.md)。

@@ -1,35 +1,32 @@
 # Kanvi
 
-本地运行的公众号风格提取与文章排版工具。
+本地运行的公众号排版工具：用固定版本的 gzh-beautify skill 主题包，把 Markdown 装成可粘贴、可检查的公众号正文。
 
-最终目标：提供公众号参考链接，提取可复用设计；导入 Obsidian Markdown 后套用模板，生成可预览、检查、下载和复制的正文。
+当前主路径：**选一套风格主题 → 导入自己的 Markdown → AI 按主题槽位装配 → 双规格检查 → 复制或下载**。参考链接提取与模板工作台是更早的路径，现已冻结保留，不再演进。
 
 ## 当前可用
 
-2026-09-15：已实现基础排版、参考分析、模板工作台和 Markdown 文章生成。
+2026-09-24：新增风格主题链路（gzh-beautify skill 固定版本、主题库、主题工厂、AI 直出 HTML 与双校验、CLI 与 `/styles` 界面）。2026-09-15 的基础排版、参考分析、模板工作台与 Markdown 文章生成仍可用。
 
+- 风格主题页（`/styles`）：主题库画廊与预览、按 brief 生产主题草案并逐个确认入库、删除主题、导入 Markdown 生成正文、渲染历史、通过后被复制的富文本。
+- CLI：`theme:seed`、`theme:make`、`theme:confirm`、`theme:remove`、`theme:render`。
 - 首页：自定义 HTML/CSS 内联、官方结构规则检测、预览、富文本复制和 HTML 下载。
-- 参考风格页（`/references`）：公众号链接读取或 HTML 导入、正文及样式证据、本地参考列表、DeepSeek 设计分析、独立草稿历史。
-- 分析失败可重试；没有 API Key 仍可导入与查看参考。不把模型分析当成模板规则检测通过。
-- 模板页（`/templates`）：从已保存设计制作模板、不可变版本、样例规则检测、受限行距修正、来源证据及历史；通过检测后可复制样例。
+- 参考风格页（`/references`）与模板页（`/templates`）、文章生成页（`/generate`）：见下方“历史路径（已冻结）”。
 
-- 文章生成页（`/generate`）：导入单篇 Markdown、查看原文位置与诊断、手选适配模板、独立检测本篇、保存历史、预览、下载与通过后的复制。
-
-111 项自动测试、类型检查和生产构建通过；第四阶段另完成 13 项生产 HTTP 核验，两篇自写日记通过真实官方检查器。含强调的独立诊断样例仍保留行距问题，详见下方限制。测试使用自写文章与受控模型响应。真实微信链接抓取及真实 DeepSeek 调用尚未验证。按用户要求，不执行公众号实测、系统粘贴或浏览器交互模拟。
-
-AI 模板推荐尚未实现；目前使用手动选择，生成文章不需要 API Key。项目没有完整富文本编辑器。
+149 项自动测试、类型检查和生产构建通过；`npm run verify:themes` 用真实上游脚本与真实官方检查器验证了整条新链路，模型响应为受控 fixture。**真实 DeepSeek 调用与公众号实测未执行**，详见 [第七阶段验证报告](docs/validation/2026-09-24-theme-skill.md)。
 
 ## 本地启动
 
-前提：Git、npm、系统 Chrome。已在 macOS、Chrome 152.0.7977.83 验证。
+前提：Git、npm、系统 Chrome、`python3`（运行 skill 校验脚本，实测 3.9.6 可用，可用 `KANVI_PYTHON` 指定）。已在 macOS、Chrome 152.0.7977.83 验证。
 
 ```bash
 npm ci
-npm run setup:checker
+npm run setup:checker   # 同时克隆 wechat-spec 检查器与 gzh-beautify skill 到 vendor/
+npm run theme:seed      # 把 6 套示例主题复制到 themes/ 作为初始主题库
 npm run dev
 ```
 
-打开终端显示的本地地址，默认 `http://127.0.0.1:8787`（避开 3000、5173、8080 以及 macOS 上被 AirPlay 占用的 5000/7000）。开发期间的临时预览服务已停止；需要运行时使用上述启动命令。
+打开终端显示的本地地址，默认 `http://127.0.0.1:8787`（避开 3000、5173、8080 以及 macOS 上被 AirPlay 占用的 5000/7000）。
 
 端口偶尔被占用时不必改仓库配置，直接在命令行覆盖：
 
@@ -52,57 +49,47 @@ npm run start
 npm test
 npm run typecheck
 npm run check:upstream
+npm run verify:themes
 npm run verify:integration
 npm run verify:templates
 npm run verify:articles
 ```
 
-若检查器未安装、版本被修改或无法启动，页面显示检测失败，不显示通过。安装脚本不会覆盖已有的不同版本源码。
+若检查器未安装、版本被修改或无法启动，页面显示检测失败，不显示通过。安装脚本不会覆盖已有的不同版本源码。`gzh-beautify-skill` 是可选上游：没有安装时只影响风格主题链路，不会让既有检查链路失败；缺失时相关操作会提示 `npm run setup:checker`。
 
-## 参考风格与 DeepSeek
+## 风格主题（skill 直出 HTML）
 
-1. 启动后打开“参考风格”，输入公众号链接，或选择自己保存的 UTF-8 HTML 文件（最大 2 MiB，需含唯一的 `#js_content` 正文区域）。
-2. 查看来源诊断和结构证据。抓取遇到验证码或访问限制会报错，不绕过验证。原始 HTML 仅存在本地，不直接预览或执行。
-3. 如需 AI 分析，将 `.env.example` 复制为 `.env.local`，在本机填写 `DEEPSEEK_API_KEY`，然后重启服务。默认模型 `deepseek-flash`，可用 `DEEPSEEK_MODEL` 配置。不要把 Key 发送到聊天、放进客户端变量或提交 Git。
-4. 重新打开参考后点击“分析设计风格”。仅本篇结构、样式和每个元素最多 120 字的片段会发送到 DeepSeek。分析不会自动运行，也不自动重试收费请求。
-5. 查看配色、字号、区域、引用证据、估计及不支持项。每次分析独立保存，仍属于设计草稿。
+1. 打开“风格主题”，左侧是本地主题库。种子 6 套来自上游示例（`mist-masthead`、`step-workshop`、`paper-journal`、`cinnabar-catalog`、`graphite-editorial`、`moss-zen`），点主题名可看预览。
+2. 在右侧选一套主题、导入或粘贴 Markdown，点击“生成并检查”。生成过程会先做结构解析与发送上限检查，再把内容交给模型按 `THEME.md` 的槽位装配。
+3. 检查分两道：skill 的 `validate_article.py --strict`（可粘贴结构、平台红线、`span[leaf]` 包裹、全角标点等，要求 0 ERROR / 0 WARN）与官方 wechat-spec 检查器（真实 Chrome）。两道都通过、且原文保真门禁通过，才显示“规格检查通过”并启用复制。
+4. 原文保真：产物中每个内容单元的句子必须按顺序出现，出现改写、丢段、换序或残留 Markdown 标记都会判为“需要修正”。章节编号、目录与英文标签属于主题骨架允许的新增，界面会单独列出供核对。
+5. 主题工厂：在“主题工厂”输入 brief 生成草案（写入 `data/theme-drafts/<主题id>/`），草案只保留在本地待你确认；确认时重新运行 lint，通过后写入 `themes/<主题id>/` 并记录生成来源。删除主题需要在界面上二次确认，种子主题可用 `npm run theme:seed` 恢复，已有渲染历史不受影响。
 
-参考与草稿分别保存在 `data/references/<来源指纹>/snapshot.json` 和 `data/analyses/<来源指纹>/<分析ID>/analysis.json`，重启后可读取。源码和这些本地数据分开管理。
+CLI 等价入口：
 
-当前分析只读取静态 HTML/CSS，不会运行页面脚本、读取外部样式或测量布局；图片装饰、伪元素、动态和条件样式会有诊断。证据输入超过 100 KiB 时明确报错，不截断后冒充完整分析。
+```bash
+npm run theme:render -- --theme moss-zen --input 文章.md   # 0=通过 1=需修正 2=错误
+npm run theme:make -- --brief 风格说明.md                   # 只产出草案
+npm run theme:confirm                                       # 列出待确认草案
+npm run theme:confirm -- --draft <主题id>                    # 确认入库；--discard 丢弃
+npm run theme:remove -- --id <主题id> --confirm <主题id>      # 删除主题包
+npm run theme:seed                                          # 从固定版本恢复种子主题
+```
 
-## 制作可复用模板
+产物与记录：正文写在 `artifacts/renders/<记录ID>/body.html`，报告在同目录 `report.json`；可复现的渲染记录保存在 `data/renders/<记录ID>/`，其中带有主题内容快照，所以即使主题被删除，历史仍可读取与复算。
 
-1. 在“参考风格”打开一份已保存的设计草稿，点击“制作模板”。
-2. 在模板页查看来源、支持的文字类型、估计项和结构映射，再生成并检测样例。
-3. 检测状态与模板版本、样例正文指纹和检查器版本绑定；只有“规则检测通过”才启用样例复制。未通过仍可下载并查看诊断。
-4. 对可以明确定位的行距问题，可选择本地修正，或配置 Key 后选择 AI 修正。AI 只接收候选节点与样式；补丁只允许增加指定节点行距，最多两轮。每轮形成新版本并重新检测，失败不会继承旧版通过状态。
+边界：AI 只做装配，不改写原文；模型输出里的 `<script>`、事件属性、可执行 URL、`div`/`class`/`id` 或完整文档外壳一律拒绝，不静默删除后声称成功。图片按原文 `src` 渲染，不编造图床 URL；本地相对路径需要在公众号内重新上传。发送给模型的文章上限 60 KiB，超过直接报错，不截断后声称已发送完整内容。规格检查通过只表示该产物在固定检查器与固定 skill 版本下没有报告问题，不等于公众号实测通过。
 
-模板及检测记录保存在 `data/templates/<模板ID>/<版本ID>/`，版本 ID 为 UUID；重启后可读取。预览、检测、下载和复制共用保存的同一份样例正文。
+## 历史路径（已冻结）
 
-当前限制：模板语法支持受限嵌套及自定义边框、留白等样式，但从设计草稿自动生成时按标题、正文、引用等语义映射，尚不能自动重建参考文章的复杂区域布局。同一类存在多组样式时会拒绝生成，不擅自选择其一。来源未声明的文字类型不会补成默认主题。
+以下两条链路按 2026-09-24 的决定保留现状：不删除、不演进、不改行为，其测试与验证报告继续作为历史证据。
 
-固定版本的官方检查器可能把一行中的加粗等片段计为多行，产生行距误报。程序保留原样例与原始诊断并停在“需修正”，不会删除强调、隐藏问题或为此扩大行距。样例通过也不表示所有篇幅、结构组合和微信环境都已验证。
+- 参考风格页（`/references`）：公众号链接读取或 HTML 导入、正文及样式证据、DeepSeek 设计分析、独立草稿历史。抓取遇到验证码或访问限制会报错，不绕过验证；原始 HTML 仅存在本地，不直接预览或执行。
+- 模板页（`/templates`）与文章生成页（`/generate`）：从设计草稿制作不可变模板版本、样例规则检测与受限行距修正；导入单篇 Markdown 手选模板套版，本篇独立检测并保留历史。
 
-## 导入 Markdown 生成文章
+这两条链路此前记录的限制仍然有效：模板按语义映射生成，不能自动重建参考文章的复杂区域布局；官方检查器对同行行内强调存在行距误报，程序保留原样例与原始诊断并停在“需修正”。详见 [第三阶段验证报告](docs/validation/2026-09-15-template-rendering.md) 与 [第四阶段验证报告](docs/validation/2026-09-15-markdown-rendering.md)。
 
-1. 打开“生成文章”，选择单篇 UTF-8 `.md` 或 `.markdown` 文件，最多 256 KiB / 20 万字符。
-2. 查看转换说明及有行列位置的诊断。错误需要在原文中处理后重新导入；有转换提示但无错误时可以继续。
-3. 手选结构适配且样例已通过检测的模板版本。系统不会为缺少的元素套用默认主题。
-4. 点击“生成并检测本篇”。本篇独立调用检查器，不复用模板样例的通过结果；原文与输出保存至 `data/articles/<文章ID>/`。
-5. 通过后可复制带格式正文，也可下载 HTML；未通过可查看诊断并下载明确标注的结果。历史保留生成时的原文、模板快照、精确版本和本篇报告，不受后来选择模板影响。
-
-目前支持标题、段落、换行、加粗/斜体、分隔线、文字段落引用和单段文字列表；有序列表保留起始编号。文字、顺序和块位置经过核对，Markdown 语法符号按规则转换，不将源码逐字当作可见正文。
-
-| Obsidian / Markdown 结构 | 当前行为 |
-|---|---|
-| YAML 属性区 | 标题、日期、文字标签作为元信息，不自动添加正文标题；无属性标题时以正文首个标题作为历史名称。其他属性只保存在原文件并提示；重复键、复杂已知字段、别名和显式标签报错 |
-| 双链 | 保留显示文字，去掉跳转；记录转换提示。未闭合或无法可靠定位的混合转义形式报错 |
-| 非折叠提示块 | 转为引用，保留标题、强调和正文；无标题时保留提示类型作为标题，并记录转换 |
-| 媒体、脚注、代码、表格、链接、删除线、任务/嵌套/多段列表、嵌套引用、原始 HTML | 当前阻止生成并定位诊断，不静默删除 |
-| Obsidian 嵌入、块标识、注释、高亮、折叠提示块 | 当前阻止生成；请在原文处理后重新导入 |
-
-文档结构最多 500 个内容块；过深结构、无正文及诊断过多也会阻止生成。生成过程不调用 AI、不改写文字、不自动修改模板。检查器故障或中断会保留失败历史，重新生成会新增记录。单条损坏历史会让当前列表页报错，不隐藏问题。备份/恢复功能留待后续阶段。
+模型配置（两条链路共用）：把 `.env.example` 复制为 `.env.local`，在本机填写 `DEEPSEEK_API_KEY`，然后重启服务。默认模型 `deepseek-flash`，可用 `DEEPSEEK_MODEL` 配置。不要把 Key 发送到聊天、放进客户端变量或提交 Git。
 
 ## 使用首页样例
 
@@ -116,25 +103,23 @@ npm run verify:articles
 
 ## 实施原则
 
-- 原文和顺序优先，AI 后续仅负责设计分析、匹配与局部修正建议。
-- 风格支持自定义 HTML/CSS，不限于固定 Markdown 主题；当前不支持的媒体、伪元素、动态样式等明确报错。
-- 本地运行不等于离线：参考读取和 DeepSeek 请求需要联网；首页样例不调用 AI。
-- 样式内联、规则检测与公众号实际预览是三件不同的事。
-- `data/`、`artifacts/`、`vendor/`、密钥及浏览器状态不提交。
+- 原文和顺序优先；AI 只负责装配、设计分析与局部修正建议，不改写事实。
+- 上游与主题资产都固定版本：检查器、skill 与主题包的实际版本记录在 `docs/upstream-lock.json` 与每个主题包的 `SOURCE.json` 中。
+- 模型输出与上游预览页都视为数据：不执行脚本与事件处理器，危险结构在入口报错。
+- 本地运行不等于离线：参考读取、主题生成与文章装配需要联网；首页样例不调用 AI。
+- 样式内联、规格检查与公众号实际预览是三件不同的事。
+- `data/`、`artifacts/`、`vendor/`、`.reasonix/`、密钥及浏览器状态不提交。
 
 ## 文档
 
 - [产品与技术设计](docs/superpowers/specs/2026-09-13-kanvi-design.md)
 - [执行路线及进度](docs/EXECUTION.md)
-- [第一阶段计划与实际完成项](docs/superpowers/plans/2026-09-13-foundation-validation.md)
-- [第一阶段验证报告](docs/validation/2026-09-13-foundation.md)
-- [第二阶段计划与完成项](docs/superpowers/plans/2026-09-14-reference-analysis.md)
-- [第二阶段验证报告](docs/validation/2026-09-15-reference-analysis.md)
-- [第三阶段模板计划与完成项](docs/superpowers/plans/2026-09-15-template-rendering.md)
-- [第三阶段验证报告](docs/validation/2026-09-15-template-rendering.md)
-- [第四阶段 Markdown 计划与完成项](docs/superpowers/plans/2026-09-15-markdown-rendering.md)
-- [第四阶段验证报告](docs/validation/2026-09-15-markdown-rendering.md)
-- [第五阶段 AI 推荐计划](docs/superpowers/plans/2026-09-15-template-recommendation.md)
+- [第一阶段计划与实际完成项](docs/superpowers/plans/2026-09-13-foundation-validation.md) · [第一阶段验证报告](docs/validation/2026-09-13-foundation.md)
+- [第二阶段计划与完成项](docs/superpowers/plans/2026-09-14-reference-analysis.md) · [第二阶段验证报告](docs/validation/2026-09-15-reference-analysis.md)
+- [第三阶段模板计划与完成项](docs/superpowers/plans/2026-09-15-template-rendering.md) · [第三阶段验证报告](docs/validation/2026-09-15-template-rendering.md)
+- [第四阶段 Markdown 计划与完成项](docs/superpowers/plans/2026-09-15-markdown-rendering.md) · [第四阶段验证报告](docs/validation/2026-09-15-markdown-rendering.md)
+- [第五阶段 AI 推荐计划（已冻结）](docs/superpowers/plans/2026-09-15-template-recommendation.md)
+- [第七阶段主题 skill 计划](docs/superpowers/plans/2026-09-24-theme-skill-rendering.md) · [第七阶段验证报告](docs/validation/2026-09-24-theme-skill.md)
 - [上游版本](docs/upstream-lock.json) · [参考依据](docs/REFERENCES.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
 远程仓库：私有 [neotu23/Kanvi](https://github.com/neotu23/Kanvi)。本项目仅本机运行，未部署公开网站。
