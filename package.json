@@ -11,6 +11,7 @@
     "test": "vitest run",
     "check:upstream": "node scripts/check-upstream.mjs",
     "setup:checker": "node scripts/setup-checker.mjs",
+    "theme:seed": "node scripts/seed-themes.mjs",
     "verify:integration": "tsx scripts/verify-integration.ts",
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:articles": "tsx scripts/verify-articles.ts"
