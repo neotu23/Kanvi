@@ -28,7 +28,14 @@ npm run setup:checker
 npm run dev
 ```
 
-打开终端显示的本地地址，默认 `http://127.0.0.1:3000`。开发期间的临时预览服务已停止；需要运行时使用上述启动命令。
+打开终端显示的本地地址，默认 `http://127.0.0.1:8787`（避开 3000、5173、8080 以及 macOS 上被 AirPlay 占用的 5000/7000）。开发期间的临时预览服务已停止；需要运行时使用上述启动命令。
+
+端口偶尔被占用时不必改仓库配置，直接在命令行覆盖：
+
+```bash
+npm run dev -- --port 5555
+npm run start -- --port 5555
+```
 
 `npm ci` 同时安装项目内 Node 24.21.0；npm 脚本优先使用该版本，不替换系统 Node。`setup:checker` 下载固定上游源码，使用已提交的依赖锁文件，不自动下载 Chromium。macOS 默认使用 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`；其他安装位置请设置 `PUPPETEER_EXECUTABLE_PATH` 后再启动。
 
