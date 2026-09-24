@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { mkdir,readFile,writeFile } from 'node:fs/promises';
+import { resolve,join } from 'node:path';
+import { TemplateRepository } from '../src/features/templates/repository';
+import { templateFromAnalysis } from '../src/features/templates/from-analysis';
+import { runTemplateCheck,officialTemplateCheck } from '../src/features/templates/workflow';
+import { analyzeDesign } from '../src/features/ai/design-analysis';
+import { extractArticle } from '../src/features/references/extract-article';
+import { renderTemplate } from '../src/features/templates/render';
+import { ArticleRepository } from '../src/features/articles/repository';
+import { generateArticle } from '../src/features/articles/workflow';
+import { parseMarkdown } from '../src/features/articles/parse-markdown';
+import { analysisFixture } from '../tests/fixtures/template-source';
+const root=resolve(process.env.KANVI_VERIFY_DATA_ROOT??join('artifacts/article-validation',new Date().toISOString().replace(/[:.]/g,'-')));
+const templates=new TemplateRepository(join(root,'templates')),articles=new ArticleRepository(join(root,'articles'),templates);
+// A separate self-authored paragraph reference, not a stripped version of a failing template.
+const snapshot=extractArticle('<div id="js_content"><p style="font-size:16px;color:#445544;line-height:1.8">这是只含正文的自写参考。</p></div>',null);
+const design=JSON.parse(await readFile('tests/fixtures/design-analysis.json','utf8'));
+const analysis=await analyzeDesign(snapshot,{config:{apiKey:'controlled-test-only',model:'fixture'},transport:async()=>Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify(design)}}]})});
+const template=await templates.create(templateFromAnalysis(analysis));
+const sample=await runTemplateCheck(templates,template);assert.equal(sample.status,'rule-passed');
+const short=await generateArticle(articles,'---\ntitle: 雨后的路\n---\n\n雨停了。\n\n沿着河边走一会儿。',template.templateId,template.version);
+assert.equal(short.status,'rule-passed');assert.equal(short.record.artifact.plainText,'雨停了。\n沿着河边走一会儿。');
+const long=await generateArticle(articles,'---\ntitle: 周末散步\ntags: [日记]\n---\n\n'+('路边的树叶还带着水珠，晚风吹过来，脚步也慢了下来。'.repeat(12))+'\n\n去[[公园|河边]]坐一会儿。\n\n回家之前，买了一些水果。',template.templateId,template.version);
+assert.equal(long.status,'rule-passed');assert.ok(long.record.artifact.plainText.includes('去河边坐一会儿。'));
+assert.equal((await new ArticleRepository(join(root,'articles'),templates).get(short.record.id)).status,'rule-passed');
+// Standalone diagnostic probe: this rich definition is never labelled a rule-passed template.
+const richArtifact=renderTemplate(templateFromAnalysis(analysisFixture()),parseMarkdown('把**平常的小事**记下来。').blocks);
+const richCheck=await officialTemplateCheck(richArtifact);
+assert.equal(richCheck.status,'violations');assert.ok(richCheck.issues.some(i=>i.rule==='line-height'));assert.ok(richArtifact.bodyHtml.includes('<strong'));
+await mkdir(resolve('artifacts'),{recursive:true});
+await writeFile(resolve('artifacts/article-integration.json'),JSON.stringify({checkedAt:new Date().toISOString(),root,templateId:template.templateId,version:template.version,sample,short,long,rich:{artifact:richArtifact,check:richCheck},scope:'Actual pinned checker; authored fixtures and controlled AI only; no browser interaction or WeChat paste'},null,2));
+console.log(JSON.stringify({root,sample:sample.status,short:short.status,long:long.status,richDiagnostic:richCheck.status}));

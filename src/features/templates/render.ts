@@ -3,16 +3,16 @@ import { buildOutput } from '../output/build-output';
 import { inline } from '../output/inline';
 import { fail,object,validateTemplate,styleCss,type TemplateDefinition,type Node,type ElementNode,type BlockKind } from './schema';
 export interface InlineText {text:string;marks?:Array<'strong'|'em'>}
-export type ContentBlock={id:string;kind:'body'|'heading';content:InlineText[];level?:number}|{id:string;kind:'quote';paragraphs:InlineText[][]}|{id:string;kind:'list';items:InlineText[][];ordered?:boolean}|{id:string;kind:'divider'};
+export type ContentBlock={id:string;kind:'body'|'heading';content:InlineText[];level?:number}|{id:string;kind:'quote';paragraphs:InlineText[][]}|{id:string;kind:'list';items:InlineText[][];ordered?:boolean;start?:number}|{id:string;kind:'divider'};
 function escape(text:string){return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 export function validateBlocks(value:unknown):ContentBlock[]{
  if(!Array.isArray(value)||!value.length||value.length>500)fail('文章内容为空或段落过多。');
  const ids=new Set<string>();let length=0;
  function tokens(input:unknown):InlineText[]{if(!Array.isArray(input)||!input.length||input.length>1000)fail('文字内容无效。');return input.map(raw=>{const item=object(raw,['text','marks']);if(typeof item.text!=='string'||!item.text.length||/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(item.text))fail();length+=item.text.length;if(length>200000)fail('文章文字过多。');if(item.marks!==undefined&&(!Array.isArray(item.marks)||item.marks.length>2||new Set(item.marks).size!==item.marks.length||!item.marks.every(x=>x==='strong'||x==='em')))fail();return {text:item.text,...(item.marks?{marks:item.marks as InlineText['marks']}:{})};});}
- return value.map(raw=>{const b=object(raw,['id','kind','content','level','paragraphs','items','ordered']);if(typeof b.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.id)||ids.has(b.id))fail('内容块 ID 无效或重复。');ids.add(b.id);
+ return value.map(raw=>{const b=object(raw,['id','kind','content','level','paragraphs','items','ordered','start']);if(typeof b.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(b.id)||ids.has(b.id))fail('内容块 ID 无效或重复。');ids.add(b.id);
   const base={id:b.id};
-  if(b.kind==='body'||b.kind==='heading'){if(b.items!==undefined||b.paragraphs!==undefined||b.ordered!==undefined||(b.level!==undefined&&(b.kind!=='heading'||!Number.isInteger(b.level)||Number(b.level)<1||Number(b.level)>6)))fail();return {...base,kind:b.kind,content:tokens(b.content),...(b.level!==undefined?{level:b.level as number}:{})};}
-  if(b.kind==='quote'||b.kind==='list'){const input=b.kind==='quote'?b.paragraphs:b.items;if(!Array.isArray(input)||!input.length||input.length>100||b.content!==undefined||b.level!==undefined||(b.kind==='quote'&&(b.items!==undefined||b.ordered!==undefined))||(b.kind==='list'&&(b.paragraphs!==undefined||(b.ordered!==undefined&&typeof b.ordered!=='boolean'))))fail('引用或列表不可为空，且必须完整声明。');const parts=input.map(tokens);return b.kind==='quote'?{...base,kind:'quote',paragraphs:parts}:{...base,kind:'list',items:parts,...(b.ordered!==undefined?{ordered:b.ordered as boolean}:{})};}
+  if(b.kind==='body'||b.kind==='heading'){if(b.items!==undefined||b.paragraphs!==undefined||b.ordered!==undefined||b.start!==undefined||(b.level!==undefined&&(b.kind!=='heading'||!Number.isInteger(b.level)||Number(b.level)<1||Number(b.level)>6)))fail();return {...base,kind:b.kind,content:tokens(b.content),...(b.level!==undefined?{level:b.level as number}:{})};}
+  if(b.kind==='quote'||b.kind==='list'){const input=b.kind==='quote'?b.paragraphs:b.items;if(!Array.isArray(input)||!input.length||input.length>100||b.content!==undefined||b.level!==undefined||(b.kind==='quote'&&(b.items!==undefined||b.ordered!==undefined||b.start!==undefined))||(b.kind==='list'&&(b.paragraphs!==undefined||(b.ordered!==undefined&&typeof b.ordered!=='boolean')||(b.start!==undefined&&(!b.ordered||!Number.isInteger(b.start)||Number(b.start)<0||Number(b.start)>999999999)))))fail('引用或列表不可为空，且必须完整声明。');const parts=input.map(tokens);return b.kind==='quote'?{...base,kind:'quote',paragraphs:parts}:{...base,kind:'list',items:parts,...(b.ordered!==undefined?{ordered:b.ordered as boolean}:{}),...(b.start!==undefined?{start:b.start as number}:{})};}
   if(b.kind==='divider'&&Object.keys(b).length===2)return {...base,kind:'divider'};return fail('不支持的内容类型。');
  });
 }
@@ -28,7 +28,7 @@ export function renderTemplate(definition:TemplateDefinition,input:ContentBlock[
   if(ctx.block?.kind==='heading'&&/^h[1-6]$/.test(tag))tag=`h${ctx.block.level??2}`;
   if(ctx.block?.kind==='list'&&['ul','ol'].includes(tag))tag=ctx.block.ordered?'ol':'ul';
   const classes=`kn-${node.id}${ctx.group?' '+ctx.group:''}`;
-  const start=`<${tag} class="${classes}" style="${styleCss(node.styles)}">`;
+  const start=`<${tag} class="${classes}" style="${styleCss(node.styles)}"${tag==='ol'&&ctx.block?.kind==='list'&&ctx.block.start!==undefined?` start="${ctx.block.start}"`:''}>`;
   return start+(['br','hr'].includes(tag)?'':node.children.map(c=>render(c,{...ctx,group:undefined})).join('')+`</${tag}>`);
  }
  const artifact=buildOutput(render(t.root,{}),'',inline);

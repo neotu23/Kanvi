@@ -84,3 +84,14 @@ SOFTWARE.
 
 
 其他 npm 依赖的许可证随各软件包分发；准确版本见 package-lock.json 和 docs/locks/wechat-cli.package-lock.json。
+
+## Markdown 与属性区解析（第四阶段）
+
+- mdast-util-from-markdown 2.0.3：MIT，https://github.com/syntax-tree/mdast-util-from-markdown
+- mdast-util-gfm 3.1.0：MIT，https://github.com/syntax-tree/mdast-util-gfm
+- micromark-extension-gfm 3.0.0：MIT，https://github.com/micromark/micromark-extension-gfm
+- mdast-util-frontmatter 2.0.1：MIT，https://github.com/syntax-tree/mdast-util-frontmatter
+- micromark-extension-frontmatter 2.0.0：MIT，https://github.com/micromark/micromark-extension-frontmatter
+- yaml 2.9.1：ISC，https://github.com/eemeli/yaml
+
+以上依赖经 npm 安装，许可证原文随包分发；精确传递依赖及完整性记录见 package-lock.json。Kanvi 使用 AST 并校验允许的结构，不直接信任或执行 Markdown 中的 HTML。
