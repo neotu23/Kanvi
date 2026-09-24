@@ -9,11 +9,11 @@
 - [x] 阶段 1：基础代码、自动化功能测试、真实检查器集成与生产构建完成。按用户最新要求，公众号实测与浏览器模拟不纳入本次验收。
 - [x] 阶段 2：参考文章读取与设计分析代码完成；受控功能测试通过，真实链接/API 调用未验证。
 - [x] 阶段 3：模板语法、语义样式映射、版本库、样例检测、受限修正与工作台完成；复杂布局自动重建未实现，上游行距误报保留。
-- [ ] 阶段 4：实现 Markdown 原文保真套版。
+- [x] 阶段 4：Markdown/Obsidian 受限转换、手选套版、本篇检测与历史已实现，语法边界见验证报告。
 - [ ] 阶段 5：实现 AI 模板匹配。
 - [ ] 阶段 6：完成本地产品界面与交付。
 
-阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–3 代码已实现，阶段 4–6 待实施。第三阶段证据及限制见 [模板报告](validation/2026-09-15-template-rendering.md)。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第四阶段计划](superpowers/plans/2026-09-15-markdown-rendering.md)。
+阶段 1 已按调整后的代码与自动化测试范围完成，具体见 [验证报告](validation/2026-09-13-foundation.md)。阶段 2–4 代码已实现，阶段 5–6 待实施。最新证据及限制见 [Markdown 报告](validation/2026-09-15-markdown-rendering.md)。继续工作前先读 [设计基线](superpowers/specs/2026-09-13-kanvi-design.md) 和 [第五阶段计划](superpowers/plans/2026-09-15-template-recommendation.md)。
 
 ## 阶段 1：验证输出、检查和复制链路
 
@@ -60,17 +60,19 @@
 
 具体计划：[Markdown 原文保真套版](superpowers/plans/2026-09-15-markdown-rendering.md)。
 
-**计划文件：** `src/features/articles/{parse-markdown,obsidian,content-integrity,render-article,repository}.ts`、`src/app/generate/`。
+**实现文件：** `src/features/articles/{parse-markdown,eligibility,workflow,repository,handlers}.ts`、`src/app/api/articles/`、`src/app/generate/`、`src/components/ArticleWorkspace.tsx`。保真渲染复用 `src/features/templates/render.ts`。
 
-- [ ] 将 Markdown 转为带 ID 和源位置的内容块，覆盖标题、段落、引用、列表、强调、分隔线。
-- [ ] 明确属性区、双链、提示块的转换；未支持的嵌入/脚注列出诊断，不删除后继续显示成功。
-- [ ] 检查模板结构适配性，再从原文读取内容填充模板。
-- [ ] 对两篇长短和结构不同的自写日记验证无新增、无遗漏、无重复、顺序正确。
-- [ ] 运行本篇布局检测并展示结果；保存同一份最终正文用于预览、导出和复制。
+- [x] 将 Markdown 转为带 ID 和源位置的内容块，覆盖标题、段落、引用、列表、强调、分隔线。
+- [x] 明确属性区、双链、提示块的转换；未支持的嵌入/脚注列出诊断，不删除后继续显示成功。
+- [x] 检查模板结构适配性，再从原文读取内容填充模板。
+- [x] 对两篇长短和结构不同的自写日记验证无新增、无遗漏、无重复、顺序正确。
+- [x] 运行本篇布局检测并展示结果；保存同一份最终正文用于预览、导出和复制。
 
 **验收：** 手动选择规则检测通过的模板可完整生成文章，不依赖 AI；模板不支持的结构有明确处理入口。
 
 ## 阶段 5：AI 模板推荐
+
+具体计划：[AI 模板推荐](superpowers/plans/2026-09-15-template-recommendation.md)。
 
 **计划文件：** `src/features/templates/{eligibility,recommend}.ts`、`src/features/ai/template-recommendation.ts`。
 
