@@ -137,4 +137,4 @@ npm run verify:articles
 - [第五阶段 AI 推荐计划](docs/superpowers/plans/2026-09-15-template-recommendation.md)
 - [上游版本](docs/upstream-lock.json) · [参考依据](docs/REFERENCES.md) · [第三方许可](THIRD_PARTY_NOTICES.md)
 
-远程仓库：私有 [calzzzx/Kanvi](https://github.com/calzzzx/Kanvi)。本项目仅本机运行，未部署公开网站。
+远程仓库：私有 [neotu23/Kanvi](https://github.com/neotu23/Kanvi)。本项目仅本机运行，未部署公开网站。
