@@ -88,12 +88,16 @@ export function parseValidate(raw: string): ParsedCounts | null {
   return { ok: errorCount === 0 && warnCount === 0, errorCount, warnCount, errors: listed(errorBlock), warnings: listed(warnBlock) };
 }
 
-function result(parsed: ParsedCounts | null, outcome: RunOutcome, label: string): ScriptResult {
+/**
+ * 两个脚本的退出码语义不同：lint_theme.py 只在有 ERROR 时返回 1（WARN 不影响退出码），
+ * validate_article.py --strict 有 ERROR 或 WARNING 都返回 1。矛盾时一律不标记通过。
+ */
+function result(parsed: ParsedCounts | null, outcome: RunOutcome, label: string, exitZeroMeans: (counts: ParsedCounts) => boolean): ScriptResult {
   const raw = (outcome.stdout + (outcome.stderr ? `\n${outcome.stderr}` : '')).slice(-16_000);
   if (outcome.error) return { ok: false, errorCount: 0, warnCount: 0, issues: [], raw, error: outcome.error };
   if (!parsed) return { ok: false, errorCount: 0, warnCount: 0, issues: [], raw, error: `${label}输出无法解析，未将结果标记为通过。` };
-  if (outcome.code !== 0 && parsed.ok) return { ok: false, errorCount: 0, warnCount: 0, issues: [], raw, error: `${label}退出码与报告矛盾，未将结果标记为通过。` };
-  if (outcome.code === 0 && !parsed.ok) return { ok: false, errorCount: parsed.errorCount, warnCount: parsed.warnCount, issues: [], raw, error: `${label}退出码与报告矛盾，未将结果标记为通过。` };
+  const expectedZero = exitZeroMeans(parsed);
+  if ((outcome.code === 0) !== expectedZero) return { ok: false, errorCount: parsed.errorCount, warnCount: parsed.warnCount, issues: [], raw, error: `${label}退出码与报告矛盾，未将结果标记为通过。` };
   const issues: ScriptIssue[] = [
     ...parsed.errors.map(message => ({ level: 'ERROR' as const, message })),
     ...parsed.warnings.map(message => ({ level: 'WARN' as const, message })),
@@ -104,11 +108,11 @@ function result(parsed: ParsedCounts | null, outcome: RunOutcome, label: string)
 
 export async function runLintTheme(dir: string, options: PythonOptions = {}): Promise<ScriptResult> {
   const outcome = await runScript('lint_theme.py', [dir], options);
-  return result(parseLint(outcome.stdout), outcome, 'lint_theme.py');
+  return result(parseLint(outcome.stdout), outcome, 'lint_theme.py', counts => counts.errorCount === 0);
 }
 export async function runValidateArticle(htmlPath: string, options: PythonOptions = {}): Promise<ScriptResult> {
   const outcome = await runScript('validate_article.py', ['--strict', htmlPath], options);
-  return result(parseValidate(outcome.stdout), outcome, 'validate_article.py');
+  return result(parseValidate(outcome.stdout), outcome, 'validate_article.py', counts => counts.errorCount === 0 && counts.warnCount === 0);
 }
 export async function runWrapPreview(htmlPath: string, outputPath: string, options: PythonOptions = {}): Promise<ScriptResult> {
   const outcome = await runScript('wrap_preview.py', [htmlPath, outputPath], options);

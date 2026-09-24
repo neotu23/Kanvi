@@ -102,6 +102,16 @@ it('真实 lint 脚本对种子主题通过，对不存在的主题失败且不�
  expect(missing.ok).toBe(false);
  expect(missing.error).toBeTruthy();
 });
+it('lint 只有 WARN 时不算通过，也不算退出码矛盾',async()=>{
+ if(!await pythonVersion()) return;
+ const root=fixture();
+ editTheme(root,'moss-zen',theme=>{theme.underline_css='border-bottom:2px solid #000000;font-weight:600;';});
+ const lint=await runLintTheme(join(root,'moss-zen'));
+ expect(lint).toMatchObject({ok:false,errorCount:0});
+ expect(lint.error).toBeUndefined();
+ expect(lint.warnCount).toBeGreaterThan(0);
+ expect(lint.issues.some(issue=>issue.level==='WARN')).toBe(true);
+});
 it('真实正文校验脚本能通过合法片段并拦下 div',async()=>{
  if(!await pythonVersion()) return;
  const root=mkdtempSync(join(tmpdir(),'kanvi-article-'));
