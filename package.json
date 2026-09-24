@@ -12,6 +12,10 @@
     "check:upstream": "node scripts/check-upstream.mjs",
     "setup:checker": "node scripts/setup-checker.mjs",
     "theme:seed": "node scripts/seed-themes.mjs",
+    "theme:render": "tsx scripts/render-theme.ts",
+    "theme:make": "tsx scripts/make-theme.ts",
+    "theme:confirm": "tsx scripts/confirm-theme.ts",
+    "theme:remove": "tsx scripts/remove-theme.ts",
     "verify:integration": "tsx scripts/verify-integration.ts",
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:articles": "tsx scripts/verify-articles.ts"
