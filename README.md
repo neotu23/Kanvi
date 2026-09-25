@@ -74,9 +74,13 @@ npm run theme:confirm                                       # 列出待确认草
 npm run theme:confirm -- --draft <主题id>                    # 确认入库；--discard 丢弃
 npm run theme:remove -- --id <主题id> --confirm <主题id>      # 删除主题包
 npm run theme:seed                                          # 从固定版本恢复种子主题
+npm run theme:backup                                        # 导出主题包与渲染历史（不含草案、artifacts、密钥）
+npm run theme:restore -- --in <备份.json>                     # 恢复：只新增，不覆盖已存在条目
 ```
 
 产物与记录：正文写在 `artifacts/renders/<记录ID>/body.html`，报告在同目录 `report.json`；可复现的渲染记录保存在 `data/renders/<记录ID>/`，其中带有主题内容快照，所以即使主题被删除，历史仍可读取与复算。
+
+备份与恢复：`/styles` 侧栏的“备份与恢复”区块与上面的 CLI 等价。备份是一个 JSON 文件，含主题包（`theme.json`、`THEME.md`、`preview.html`、来源记录）与渲染记录，带内容指纹；导出前会断言内容不含本机 API Key。恢复只新增：已存在的主题或历史会被跳过并计数，不会被覆盖。备份不包含待确认草案、`artifacts/`、`vendor/` 与冻结链路的 `data/`。界面下方同时显示主题库、草案、渲染历史与验证产物的本机路径。
 
 边界：AI 只做装配，不改写原文；模型输出里的 `<script>`、事件属性、可执行 URL、`div`/`class`/`id` 或完整文档外壳一律拒绝，不静默删除后声称成功。图片按原文 `src` 渲染，不编造图床 URL；本地相对路径需要在公众号内重新上传。发送给模型的文章上限 60 KiB，超过直接报错，不截断后声称已发送完整内容。规格检查通过只表示该产物在固定检查器与固定 skill 版本下没有报告问题，不等于公众号实测通过。
 

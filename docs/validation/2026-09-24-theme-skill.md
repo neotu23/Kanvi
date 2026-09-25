@@ -48,3 +48,21 @@
 - 提交进 Git：`themes/<id>/`（6 套种子 + `SOURCE.json`/`SOURCE.md`）、`src/features/themes/**`、`scripts/*theme*.ts`、`tests/*.test.ts`、文档与 `docs/upstream-lock.json`。
 - 不提交：`vendor/`、`data/theme-drafts/`、`data/renders/`、`artifacts/`、`.reasonix/`。
 - 每个主题包与每条渲染记录都带内容哈希；渲染记录保存主题快照（`theme.json` + `THEME.md`），因此删除主题后历史仍可读、可复算校验。
+
+## 追加验证：本地数据路径与备份恢复（2026-09-24）
+
+| 项目 | 命令 | 结果 |
+|---|---|---|
+| CLI 导出 | `npm run theme:backup` | 6 套主题 + 0 条渲染记录导出成功，内容指纹 `b60b3d60…`，文件约 224 KB；不含草案、artifacts、vendor 与密钥 |
+| CLI 恢复 | `npm run theme:restore -- --in <备份.json>` | 全部条目按“已存在”跳过，未覆盖本机现状 |
+| 自动测试 | `npx vitest run tests/backup.test.ts` | 4 项通过：导出/恢复往返、结构指纹与 id 校验、密钥拦截、接口本机限制与路径展示 |
+| 类型检查 | `npm run typecheck` | 通过 |
+
+覆盖与边界：
+
+- 备份内容：主题包三件套 + `SOURCE.json`/`SOURCE.md`，以及渲染记录 `record.json` 与 `result/report.json`。
+- 不包含：待确认草案（`data/theme-drafts/`）、`artifacts/`、`vendor/`、冻结链路的 `data/`、任何密钥。
+- 导出前断言：若备份文本包含本机 `DEEPSEEK_API_KEY` 的值，直接拒绝导出（测试用过故意注入的假 Key 验证）。
+- 恢复是“只新增”：已存在的主题或历史被跳过并计数；主题包与记录都先写临时目录再原子改名，不覆盖既有数据。
+- 导入校验：`app` 标记与版本、时间、主题/记录数量上限、`theme.json` 契约、来源记录、主题 id 与记录 UUID 格式、内容指纹一致性；任一项不符即 422，不落盘。
+- 未验证：真实 DeepSeek 调用、公众号实测、超大备份（接近 64 MiB）的实际导入表现仍未测试。

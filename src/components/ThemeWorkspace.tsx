@@ -96,6 +96,22 @@ export function ThemeWorkspace() {
           <textarea className="brief-input" rows={6} value={brief} onChange={event => setBrief(event.target.value)} placeholder="例如：禅意留白，适合随笔与生活记录；大段距、居中衬线金句、1px 细线。" />
           <button className="primary" disabled={Boolean(busy) || !brief.trim() || !ai?.configured} onClick={() => run('正在生成主题草案，可能需要一分钟…', async () => { const value = await api<{ draft: { themeId: string; lint: { ok: boolean } } }>('/api/themes/drafts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ brief }) }); setNotice(`草案已生成：${value.draft.themeId}（lint ${value.draft.lint.ok ? '通过' : '未通过'}）`); setBrief(''); await load(); })}>生成草案</button>
         </section>
+        <section className="reference-card"><h2>备份与恢复</h2>
+          <p className="local-note">备份包含主题包（三件套 + 来源记录）与渲染历史；不含草案、artifacts、vendor 与密钥。恢复只新增，不覆盖已有条目。</p>
+          <div className="template-actions">
+            <button className="secondary" disabled={Boolean(busy)} onClick={() => run('正在导出备份…', async () => { const value = await api<Record<string, unknown>>('/api/backup'); const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = `kanvi-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); setNotice('备份已下载。'); })}>导出备份</button>
+            <label className="secondary">恢复备份<input type="file" accept="application/json,.json" hidden onChange={event => { const file = event.target.files?.[0]; if (!file) return; void run('正在恢复备份…', async () => { const text = await file.text(); const value = await api<{ themes: { added: string[]; skipped: string[] }; renders: { added: string[]; skipped: string[] } }>('/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: text }); setNotice(`恢复完成：主题 +${value.themes.added.length}（跳过 ${value.themes.skipped.length}），历史 +${value.renders.added.length}（跳过 ${value.renders.skipped.length}）`); await load(); }); event.target.value = ''; }} /></label>
+          </div>
+        </section>
+        <section className="reference-card"><h2>本地数据路径</h2>
+          <ul className="diagnostics">
+            <li>主题库：{overview?.paths.themes}</li>
+            <li>待确认草案：{overview?.paths.drafts}</li>
+            <li>渲染历史：{overview?.paths.renders}</li>
+            <li>验证产物：{overview?.paths.artifacts}</li>
+          </ul>
+          <p className="local-note">这些目录不进入 Git；<code>themes/</code> 里的主题包是需要提交的资产。</p>
+        </section>
         <section className="reference-card"><h2>渲染历史（{overview?.renders.length ?? 0}）</h2>
           <ul className="reference-list">{(overview?.renders ?? []).map(item => <li key={item.id}><span><strong>{item.title}</strong></span><span>{item.themeName} · {statusLabels[item.status] ?? item.status} · {new Date(item.createdAt).toLocaleString('zh-CN')}</span></li>)}</ul>
           {!overview?.renders.length && <p className="muted">还没有渲染记录。</p>}

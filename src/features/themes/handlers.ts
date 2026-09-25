@@ -1,10 +1,11 @@
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { aiConfigurationStatus } from '../ai/client';
 import { ReferenceError } from '../references/contracts';
 import { errorResponse, json, readBounded } from '../shared/io';
 import { checkerConfig } from '../validation/config';
 import { isLocalRequest } from '../validation/local-request';
+import { draftsRoot, exportBackup, rendersRoot, restoreBackup } from './backup';
 import { confirmDraft, discardDraft, listDrafts, type DraftEntry } from './confirm';
 import { createThemeDraft, sanitizePreview } from './factory';
 import { listThemes, themesRoot, type ThemePackage } from './library';
@@ -24,13 +25,15 @@ export interface ThemeOverview {
   python: { available: boolean; version: string | null };
   skill: { installed: boolean };
   renders: Array<{ id: string; createdAt: string; title: string; themeId: string; themeName: string; status: string }>;
+  paths: { project: string; themes: string; drafts: string; renders: string; artifacts: string };
 }
 const denied = () => json({ error: '仅接受本机页面的请求。' }, 403);
 const MAX_BODY_BYTES = (256 * 1024) * 6 + 8192;
+const MAX_RESTORE_BYTES = 32 * 1024 * 1024;
 
-async function body(request: Request, keys: string[]): Promise<Record<string, unknown>> {
+async function body(request: Request, keys: string[], limit = MAX_BODY_BYTES): Promise<Record<string, unknown>> {
   if (!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get('content-type') ?? '')) throw new ReferenceError('content-type', '请使用 JSON 请求。', 415);
-  const text = await readBounded(request.body, MAX_BODY_BYTES, AbortSignal.any([request.signal, AbortSignal.timeout(15_000)]));
+  const text = await readBounded(request.body, limit, AbortSignal.any([request.signal, AbortSignal.timeout(15_000)]));
   let value;
   try { value = JSON.parse(text); } catch { throw new ReferenceError('invalid-input', '请求 JSON 无效。', 400); }
   if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) {
@@ -47,17 +50,18 @@ function summarize(pkg: ThemePackage): ThemeSummary {
 }
 
 export interface ThemeHandlerOptions {
-  themesRoot?: string; draftsRoot?: string; projectRoot?: string;
+  themesRoot?: string; draftsRoot?: string; rendersRoot?: string; projectRoot?: string;
   repository?: ThemeRenderRepository;
   render?: typeof renderArticle;
 }
 export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
   const themes = options.themesRoot ?? themesRoot();
-  const drafts = options.draftsRoot ?? (process.env.KANVI_DRAFTS_ROOT ?? 'data/theme-drafts');
+  const drafts = options.draftsRoot ?? draftsRoot();
+  const renders = options.rendersRoot ?? rendersRoot();
   const projectRoot = options.projectRoot ?? process.cwd();
-  const repository = options.repository ?? new ThemeRenderRepository();
+  const repository = options.repository ?? new ThemeRenderRepository(renders);
   const render = options.render ?? renderArticle;
-  let rendering = false, drafting = false, confirming = false;
+  let rendering = false, drafting = false, confirming = false, restoring = false;
   const signalFor = (request: Request, timeoutMs: number) => AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]);
 
   async function overview(): Promise<ThemeOverview> {
@@ -66,9 +70,13 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
     const version = await pythonVersion({ projectRoot });
     let skill = { installed: true };
     try { skillRoot(projectRoot); } catch { skill = { installed: false }; }
-    let renders: ThemeOverview['renders'] = [];
-    try { renders = (await repository.list(checkerConfig().commit)).renders; } catch { renders = []; }
-    return { themes: listed, drafts: await listDrafts(drafts), ai: aiConfigurationStatus(), python: { available: Boolean(version), version }, skill, renders };
+    // 损坏的渲染记录会让列表页报错，不隐藏问题。
+    const rendered = (await repository.list(checkerConfig().commit)).renders;
+    return {
+      themes: listed, drafts: await listDrafts(drafts), ai: aiConfigurationStatus(),
+      python: { available: Boolean(version), version }, skill, renders: rendered,
+      paths: { project: projectRoot, themes, drafts, renders, artifacts: resolve(projectRoot, 'artifacts') },
+    };
   }
 
   return {
@@ -128,6 +136,25 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
         const confirm = new URL(request.url).searchParams.get('confirm') ?? '';
         return json(await removeTheme(id, confirm, themes));
       } catch (error) { return errorResponse(error); }
+    },
+    async backup(request: Request) {
+      if (!isLocalRequest(request)) return denied();
+      try { return json(await exportBackup({ themesRoot: themes, rendersRoot: renders })); } catch (error) { return errorResponse(error); }
+    },
+    async restore(request: Request) {
+      if (!isLocalRequest(request)) return denied();
+      if (restoring) return json({ error: '正在恢复备份，请等待完成。' }, 409);
+      restoring = true;
+      try {
+        if (!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get('content-type') ?? '')) throw new ReferenceError('content-type', '请使用 JSON 请求。', 415);
+        const text = await readBounded(request.body, MAX_RESTORE_BYTES, signalFor(request, 120_000));
+        let value;
+        try { value = JSON.parse(text); } catch { throw new ReferenceError('invalid-input', '请求 JSON 无效。', 400); }
+        const candidate = value && typeof value === 'object' && !Array.isArray(value) && 'backup' in value
+          ? (value as { backup: unknown }).backup
+          : value;
+        return json(await restoreBackup(candidate, { themesRoot: themes, rendersRoot: renders }), 201);
+      } catch (error) { return errorResponse(error); } finally { restoring = false; }
     },
   };
 }
