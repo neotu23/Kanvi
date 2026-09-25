@@ -104,3 +104,15 @@ it('备份接口只接受本机请求，并能导出与恢复',async()=>{
   expect(typeof overview.paths.artifacts).toBe('string');
  }finally{rmSync(current.dir,{recursive:true,force:true});}
 },120_000);
+
+it('设计提示词与调整记录随主题备份恢复，旧备份仍可读取', async () => {
+ const current=env();
+ try {
+  const design={version:1,prompt:'保留纸感与留白。',adjustment:'缩小章节间距。',changes:['章节样式已调整']};
+  writeFileSync(join(current.themes,'moss-zen','DESIGN.json'),JSON.stringify(design));
+  const backup=await exportBackup({themesRoot:current.themes,rendersRoot:current.renders});
+  expect(backup.themes[0].files['DESIGN.json']).toBe(JSON.stringify(design));
+  await restoreBackup(backup,{themesRoot:current.restored.themes,rendersRoot:current.restored.renders});
+  expect(JSON.parse(readFileSync(join(current.restored.themes,'moss-zen','DESIGN.json'),'utf8'))).toEqual(design);
+ } finally {rmSync(current.dir,{recursive:true,force:true});}
+});

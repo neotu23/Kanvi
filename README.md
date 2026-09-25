@@ -2,7 +2,7 @@
 
 本地运行的公众号排版工具：用固定版本的 gzh-beautify skill 主题包，把 Markdown 装成可粘贴、可检查的公众号正文。
 
-当前主路径：**选一套风格主题 → 导入自己的 Markdown → AI 按主题槽位装配 → 双规格检查 → 复制或下载**。参考链接提取与模板工作台是更早的路径，现已冻结保留，不再演进。
+当前主路径：**完整文章预览 → 选择已保存主题 → 进入正文生成 → 导入自己的 Markdown → AI 按主题槽位装配 → 双规格检查 → 复制或下载**。参考链接提取与模板工作台是更早的路径，现已冻结保留，不再演进。
 
 ## 当前可用
 
@@ -59,11 +59,13 @@ npm run verify:articles
 
 ## 风格主题（skill 直出 HTML）
 
-1. 打开“风格主题”，左侧是本地主题库。种子 6 套来自上游示例（`mist-masthead`、`step-workshop`、`paper-journal`、`cinnabar-catalog`、`graphite-editorial`、`moss-zen`），点主题名可看预览。
-2. 在右侧选一套主题、导入或粘贴 Markdown，点击“生成并检查”。生成过程会先做结构解析与发送上限检查，再把内容交给模型按 `THEME.md` 的槽位装配。
+1. 打开“风格主题”，左侧是本地主题库。种子 6 套来自上游示例（`mist-masthead`、`step-workshop`、`paper-journal`、`cinnabar-catalog`、`graphite-editorial`、`moss-zen`），点主题名可看完整文章预览，页面默认打开第一套可用主题。预览随全文展开，不设内部滚动区。
+2. 查看已保存主题的预览后，点击顶部“进入生成正文”，导入或粘贴 Markdown，点击“生成并检查”。已保存主题不显示确认按钮；新生成的草案自动打开预览，右上角显示“未保存主题”，点击可保存入库。预览底部不放操作按钮，切换主题保留已输入的正文。生成过程会先做结构解析与发送上限检查，再把内容交给模型按 `THEME.md` 的槽位装配。
 3. 检查分两道：skill 的 `validate_article.py --strict`（可粘贴结构、平台红线、`span[leaf]` 包裹、全角标点等，要求 0 ERROR / 0 WARN）与官方 wechat-spec 检查器（真实 Chrome）。两道都通过、且原文保真门禁通过，才显示“规格检查通过”并启用复制。
 4. 原文保真：产物中每个内容单元的句子必须按顺序出现，出现改写、丢段、换序或残留 Markdown 标记都会判为“需要修正”。章节编号、目录与英文标签属于主题骨架允许的新增，界面会单独列出供核对。
 5. 主题工厂：在“主题工厂”输入 brief 生成草案（写入 `data/theme-drafts/<主题id>/`），草案只保留在本地待你确认；确认时重新运行 lint，通过后写入 `themes/<主题id>/` 并记录生成来源。删除主题需要在界面上二次确认，种子主题可用 `npm run theme:seed` 恢复，已有渲染历史不受影响。
+
+预览示例为自写的《把一个下午还给自己》，保存在 [`public/samples/slow-afternoon.md`](public/samples/slow-afternoon.md)，页面提供下载入口。六套主题使用同一份文章，按各自 `THEME.md` 的正文槽位装配，不依赖模型；上游 `preview.html` 仍保留为主题包资产。样例预览不表示正文规格检查通过。缺槽、未知变量或正文丢失会明确报错，不退回占位文案。详见 [主题预览与入口改动验证](docs/validation/2026-09-25-theme-preview.md)。
 
 CLI 等价入口：
 

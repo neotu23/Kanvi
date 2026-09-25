@@ -2,13 +2,14 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { ReferenceError } from '../references/contracts';
+import { validateDesign } from './design';
 import { themeDir, themesRoot } from './library';
 import { MAX_PREVIEW_BYTES, MAX_THEME_FILE_BYTES, themeIdPattern, validateThemeJson, validateThemeSource } from './schema';
 
 export const BACKUP_VERSION = 1;
 export const MAX_BACKUP_BYTES = 64 * 1024 * 1024;
 const MAX_RECORD_BYTES = 8 * 1024 * 1024;
-const THEME_FILES = ['theme.json', 'THEME.md', 'preview.html', 'SOURCE.json', 'SOURCE.md'] as const;
+const THEME_FILES = ['theme.json', 'THEME.md', 'preview.html', 'SOURCE.json', 'SOURCE.md', 'DESIGN.json'] as const;
 const RECORD_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 export const rendersRoot = () => resolve(process.env.KANVI_RENDERS_ROOT ?? 'data/renders');
@@ -63,6 +64,7 @@ export async function exportBackup(options: BackupOptions = {}): Promise<BackupF
       const themeJson = validateThemeJson(JSON.parse(files['theme.json']));
       if (themeJson.id !== entry.name) throw new Error('id mismatch');
       if (files['SOURCE.json']) validateThemeSource(JSON.parse(files['SOURCE.json']));
+      if (files['DESIGN.json']) validateDesign(JSON.parse(files['DESIGN.json']));
     } catch { skipped.themes.push(entry.name); continue; }
     themes.push({ id: entry.name, files });
   }
@@ -111,6 +113,7 @@ export function validateBackup(value: unknown): BackupFile {
       const parsed = validateThemeJson(JSON.parse(files['theme.json']));
       if (parsed.id !== theme.id) throw new Error('id mismatch');
       if (files['SOURCE.json']) validateThemeSource(JSON.parse(files['SOURCE.json']));
+      if (files['DESIGN.json']) validateDesign(JSON.parse(files['DESIGN.json']));
     } catch { throw new ReferenceError('invalid-backup', `备份中主题 ${theme.id} 的契约校验未通过。`, 422); }
     return { id: theme.id, files };
   });

@@ -7,12 +7,14 @@ import { checkerConfig } from '../validation/config';
 import { isLocalRequest } from '../validation/local-request';
 import { draftsRoot, exportBackup, rendersRoot, restoreBackup } from './backup';
 import { confirmDraft, discardDraft, listDrafts, type DraftEntry } from './confirm';
-import { createThemeDraft, sanitizePreview } from './factory';
+import { createThemeDraft } from './factory';
+import { buildThemePreview } from './preview';
 import { listThemes, themeDir, themesRoot, type ThemePackage } from './library';
 import { pythonVersion, skillRoot } from './python';
 import { removeTheme } from './remove';
 import { renderArticle } from './render-article';
 import { ThemeRenderRepository, type RenderDetail } from './repository';
+import { createStudioDraft, readStudioTheme } from './studio';
 import { MAX_PREVIEW_BYTES } from './schema';
 
 export interface ThemeSummary {
@@ -54,6 +56,7 @@ export interface ThemeHandlerOptions {
   themesRoot?: string; draftsRoot?: string; rendersRoot?: string; projectRoot?: string;
   repository?: ThemeRenderRepository;
   render?: typeof renderArticle;
+  studio?: typeof createStudioDraft;
 }
 export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
   const themes = options.themesRoot ?? themesRoot();
@@ -62,6 +65,7 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
   const projectRoot = options.projectRoot ?? process.cwd();
   const repository = options.repository ?? new ThemeRenderRepository(renders);
   const render = options.render ?? renderArticle;
+  const studioOptions = { themesRoot: themes, draftsRoot: drafts, projectRoot };
   let rendering = false, drafting = false, confirming = false, restoring = false;
   const signalFor = (request: Request, timeoutMs: number) => AbortSignal.any([request.signal, AbortSignal.timeout(timeoutMs)]);
 
@@ -99,8 +103,11 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
           if (info?.isFile() && info.size <= MAX_PREVIEW_BYTES) { path = draftPath; source = '待确认草案'; }
         }
         if (!path) throw new ReferenceError('not-found', '没有找到这个主题包或草案。', 404);
-        const html = await readFile(path, 'utf8');
-        return json({ id, source, html: sanitizePreview(html) });
+        const [themeMarkdown, markdown] = await Promise.all([
+          readFile(join(path, '..', 'THEME.md'), 'utf8'),
+          readFile(resolve(projectRoot, 'public/samples/slow-afternoon.md'), 'utf8'),
+        ]);
+        return json({ id, source, markdown, html: buildThemePreview(themeMarkdown, markdown) });
       } catch (error) { return errorResponse(error); }
     },
     async render(request: Request) {
@@ -116,12 +123,44 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
         return json(detail, 201);
       } catch (error) { return errorResponse(error); } finally { rendering = false; }
     },
+    async design(request: Request, id: string) {
+      if (!isLocalRequest(request)) return denied();
+      try {
+        const source = new URL(request.url).searchParams.get('source') ?? 'saved';
+        if (source !== 'saved' && source !== 'draft') throw new ReferenceError('invalid-input', '模板来源无效。', 400);
+        return json(await readStudioTheme(id, source, studioOptions));
+      } catch (error) { return errorResponse(error); }
+    },
+    async history(request: Request) {
+      if (!isLocalRequest(request)) return denied();
+      try {
+        const commit = checkerConfig().commit;
+        const all: ThemeOverview['renders'] = [];
+        let cursor: string | undefined;
+        do {
+          const page = await repository.list(commit, cursor);
+          all.push(...page.renders); cursor = page.nextCursor ?? undefined;
+        } while (cursor);
+        all.sort((a,b) => Date.parse(b.createdAt) - Date.parse(a.createdAt) || a.id.localeCompare(b.id));
+        return json({ renders: all });
+      } catch (error) { return errorResponse(error); }
+    },
+    async historyDetail(request: Request, id: string) {
+      if (!isLocalRequest(request)) return denied();
+      try { return json(await repository.get(id, checkerConfig().commit)); }
+      catch (error) { return errorResponse(error); }
+    },
     async createDraft(request: Request) {
       if (!isLocalRequest(request)) return denied();
       if (drafting) return json({ error: '已有主题草案正在生成，请等待完成。' }, 409);
       drafting = true;
       try {
-        const value = await body(request, ['brief']);
+        const value = await body(request, ['brief', 'name', 'prompt', 'adjustment', 'baseId', 'baseSource']);
+        if ('prompt' in value) {
+          const draft = await (options.studio ?? createStudioDraft)(value, { ...studioOptions, signal: signalFor(request, 300_000) });
+          return json({ draft }, 201);
+        }
+        if (Object.keys(value).some(key => key !== 'brief')) throw new ReferenceError('invalid-input', '请求字段不符合要求。', 400);
         if (typeof value.brief !== 'string') throw new ReferenceError('invalid-input', '请填写主题 brief。', 400);
         const draft = await createThemeDraft(value.brief, { projectRoot, draftsRoot: drafts, signal: signalFor(request, 300_000) });
         return json({ draft }, 201);

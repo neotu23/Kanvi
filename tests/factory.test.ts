@@ -110,3 +110,13 @@ it('丢弃草案后目录消失，再次丢弃报未找到',async()=>{
  await expect(discardDraft('draft-nine',drafts)).rejects.toThrow(/没有找到/);
  await expect(discardDraft('../escape',drafts)).rejects.toThrow(/id 无效/);
 });
+
+it('设计提示词随草案入库保存，后续可读取原文', async () => {
+ const {drafts,themes}=env();
+ const transport=responses([themePayload('prompt-kept','纸上慢读',seedText('THEME.md')),{previewHtml:seedText('preview.html')}]);
+ await createThemeDraft('米白背景，衬线标题，正文宽松。',options(drafts,themes,transport));
+ await confirmDraft('prompt-kept',{draftsRoot:drafts,themesRoot:themes,projectRoot:process.cwd()});
+ const path=join(themes,'prompt-kept','DESIGN.json');
+ expect(existsSync(path)).toBe(true);
+ expect(JSON.parse(readFileSync(path,'utf8')).prompt).toBe('米白背景，衬线标题，正文宽松。');
+});

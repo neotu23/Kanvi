@@ -42,8 +42,8 @@ it('主题库接口返回可用主题与运行环境，并拒绝非本机请求'
 it('主题预览会剥掉脚本，渲染接口按字段校验并有并发锁',async()=>{
  const current=env();
  try{
-  const previewPath=join(current.themes,'moss-zen','preview.html');
-  writeFileSync(previewPath,readFileSync(previewPath,'utf8').replace('</body>','<script>alert(1)</script><p onclick="x()">脚本测试</p></body>'));
+  const previewPath=join(current.themes,'moss-zen','THEME.md');
+  writeFileSync(previewPath,readFileSync(previewPath,'utf8').replace('{{body}}','{{body}}<script>alert(1)</script><span onclick="x()">脚本测试</span>'));
   let release:()=>void=()=>{};const wait=new Promise<void>(resolve=>{release=resolve});
   let entered:()=>void=()=>{};const started=new Promise<void>(resolve=>{entered=resolve});
   const handlers=createThemeHandlers({themesRoot:current.themes,draftsRoot:current.drafts,projectRoot:process.cwd(),repository:new ThemeRenderRepository(current.renders),render:async(_markdown:string,themeId:string)=>{entered();await wait;return stubDetail(themeId);}});

@@ -2,6 +2,7 @@ import { lstat, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import { join } from 'node:path';
 import { ReferenceError } from '../references/contracts';
 import { MAX_THEME_MARKDOWN_BYTES, MAX_PREVIEW_OUTPUT_BYTES, draftsRoot } from './factory';
+import { readDesign } from './design';
 import { themeDir, themesRoot } from './library';
 import { runLintTheme } from './python';
 import { MAX_THEME_FILE_BYTES, validateThemeJson, validateThemeSource } from './schema';
@@ -77,6 +78,7 @@ export async function confirmDraft(themeId: string, options: ConfirmOptions = {}
   const themes = options.themesRoot ?? themesRoot();
   const source = themeDir(themeId, drafts);
   const target = themeDir(themeId, themes);
+  await readDesign(source);
   const rawRecord = JSON.parse(await readText(join(source, 'draft.json'), MAX_THEME_FILE_BYTES, 'draft.json')) as Record<string, unknown>;
   if (rawRecord.version !== 1 || rawRecord.themeId !== themeId) throw new ReferenceError('draft-invalid', '草案记录与目录不一致。', 422);
   const themeMarkdown = await readText(join(source, 'THEME.md'), MAX_THEME_MARKDOWN_BYTES, 'THEME.md');

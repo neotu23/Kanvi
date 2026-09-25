@@ -1,2 +1,5 @@
-import { ValidationDemo } from '../components/ValidationDemo';
-export default function Page() { return <ValidationDemo/>; }
+import { ThemeWorkspace } from '../components/ThemeWorkspace';
+export default async function Page({ searchParams }: { searchParams: Promise<{ theme?: string }> }) {
+  const { theme } = await searchParams;
+  return <ThemeWorkspace initialThemeId={typeof theme === 'string' ? theme : ''} />;
+}

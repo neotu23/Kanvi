@@ -1,2 +1,1 @@
-import { ThemeWorkspace } from '../../components/ThemeWorkspace';
-export default function StylesPage() { return <ThemeWorkspace />; }
+export { default } from '../page';
