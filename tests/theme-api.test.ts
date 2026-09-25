@@ -1,4 +1,4 @@
-import {cpSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
+import {cpSync,mkdirSync,mkdtempSync,readFileSync,rmSync,writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {expect,it} from 'vitest';
@@ -93,5 +93,20 @@ it('主题工厂在缺少 Key 之前不会写出草案目录',async()=>{
   await expect(createThemeDraft('禅意留白。',{projectRoot:process.cwd(),draftsRoot:current.drafts})).rejects.toThrow(/DEEPSEEK_API_KEY/);
   const handlers=createThemeHandlers({themesRoot:current.themes,draftsRoot:current.drafts,projectRoot:process.cwd(),repository:new ThemeRenderRepository(current.renders)});
   expect((await (await handlers.list(get(''))).json()).drafts).toEqual([]);
+ }finally{rmSync(current.dir,{recursive:true,force:true});}
+});
+it('预览接口先查主题库，再回退到待确认草案目录',async()=>{
+ const current=env();
+ try{
+  const handlers=createThemeHandlers({themesRoot:current.themes,draftsRoot:current.drafts,projectRoot:process.cwd(),repository:new ThemeRenderRepository(current.renders)});
+  const library=await (await handlers.preview(get('/moss-zen'),'moss-zen')).json();
+  expect(library.source).toBe('主题包');
+  mkdirSync(current.drafts,{recursive:true});
+  cpSync(join(current.themes,'moss-zen'),join(current.drafts,'draft-preview'),{recursive:true});
+  const draft=await (await handlers.preview(get('/draft-preview'),'draft-preview')).json();
+  expect(draft.source).toBe('待确认草案');
+  expect(draft.html).toContain('<section');
+  expect((await handlers.preview(get('/no-such'),'no-such-theme')).status).toBe(404);
+  expect((await handlers.preview(get('/moss-zen'),'../escape')).status).toBe(400);
  }finally{rmSync(current.dir,{recursive:true,force:true});}
 });

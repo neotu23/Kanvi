@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { aiConfigurationStatus } from '../ai/client';
 import { ReferenceError } from '../references/contracts';
@@ -8,11 +8,12 @@ import { isLocalRequest } from '../validation/local-request';
 import { draftsRoot, exportBackup, rendersRoot, restoreBackup } from './backup';
 import { confirmDraft, discardDraft, listDrafts, type DraftEntry } from './confirm';
 import { createThemeDraft, sanitizePreview } from './factory';
-import { listThemes, themesRoot, type ThemePackage } from './library';
+import { listThemes, themeDir, themesRoot, type ThemePackage } from './library';
 import { pythonVersion, skillRoot } from './python';
 import { removeTheme } from './remove';
 import { renderArticle } from './render-article';
 import { ThemeRenderRepository, type RenderDetail } from './repository';
+import { MAX_PREVIEW_BYTES } from './schema';
 
 export interface ThemeSummary {
   id: string; name: string; description: string; origin: string; hasNote: boolean;
@@ -89,9 +90,17 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
       try {
         const entries = await listThemes(themes);
         const entry = entries.find(item => item.id === id);
-        if (!entry?.ok || !entry.theme) throw new ReferenceError('not-found', '没有找到这个主题包。', 404);
-        const html = await readFile(join(entry.theme.path, 'preview.html'), 'utf8');
-        return json({ id, html: sanitizePreview(html) });
+        // 待确认草案不在主题库里，预览时回退到 data/theme-drafts/<id>/。
+        let path = entry?.ok && entry.theme ? join(entry.theme.path, 'preview.html') : null;
+        let source = '主题包';
+        if (!path) {
+          const draftPath = join(themeDir(id, drafts), 'preview.html');
+          const info = await stat(draftPath).catch(() => null);
+          if (info?.isFile() && info.size <= MAX_PREVIEW_BYTES) { path = draftPath; source = '待确认草案'; }
+        }
+        if (!path) throw new ReferenceError('not-found', '没有找到这个主题包或草案。', 404);
+        const html = await readFile(path, 'utf8');
+        return json({ id, source, html: sanitizePreview(html) });
       } catch (error) { return errorResponse(error); }
     },
     async render(request: Request) {

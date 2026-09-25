@@ -70,7 +70,7 @@ export function ThemeWorkspace() {
         <section className="reference-card"><h2>主题库（{themes.length}）</h2>
           <ul className="reference-list">{themes.map(item => <li key={item.id}>
             {isBroken(item) ? <button disabled><strong>{item.id}</strong><span>读取失败：{item.error}</span></button>
-              : <button disabled={Boolean(busy)} aria-current={themeId === item.id ? 'true' : undefined} onClick={() => { setThemeId(item.id); setDetail(null); run('正在读取主题预览…', async () => setPreview(await api(`/api/themes/${encodeURIComponent(item.id)}/preview`))); }}>
+              : <button disabled={Boolean(busy)} aria-current={themeId === item.id ? 'true' : undefined} onClick={() => { setThemeId(item.id); setDetail(null); run('正在读取主题预览…', async () => setPreview(await api(`/api/themes/${encodeURIComponent(item.id)}`))); }}>
                   <strong>{item.name}</strong>
                   <span>{originLabels[item.origin] ?? item.origin} · 签名槽 {item.signatureCount} · 正文 {item.bodySize}</span>
                   <span>{item.tags.mood.join('、')}｜{item.tags.scenes.join('、')}</span>
@@ -84,7 +84,7 @@ export function ThemeWorkspace() {
             <p><strong>{entry.ok ? entry.draft?.name : entry.themeId}</strong></p>
             {entry.ok && entry.draft ? <ul className="diagnostics"><li>{entry.themeId}</li><li>lint：{entry.draft.lint.ok ? '0 ERROR / 0 WARN' : `${entry.draft.lint.errorCount} ERROR / ${entry.draft.lint.warnCount} WARN`}</li><li>模型：{entry.draft.model}</li></ul> : <p className="warning">{entry.error}</p>}
             <div className="template-actions">
-              <button className="secondary" disabled={Boolean(busy)} onClick={() => run('正在读取草案预览…', async () => setPreview(await api(`/api/themes/${encodeURIComponent(entry.themeId)}/preview`)))}>预览</button>
+              <button className="secondary" disabled={Boolean(busy)} onClick={() => run('正在读取草案预览…', async () => setPreview(await api(`/api/themes/${encodeURIComponent(entry.themeId)}`)))}>预览</button>
               <button className="primary" disabled={Boolean(busy) || !entry.ok || !entry.draft?.lint.ok} onClick={() => run('正在确认入库…', async () => { const value = await api<{ themeId: string }>(`/api/themes/drafts/${encodeURIComponent(entry.themeId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'confirm' }) }); setNotice(`已入库：${value.themeId}`); await load(); })}>确认入库</button>
               <button className="text-button" disabled={Boolean(busy)} onClick={() => run('正在丢弃草案…', async () => { await api(`/api/themes/drafts/${encodeURIComponent(entry.themeId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'discard' }) }); await load(); })}>丢弃</button>
             </div>

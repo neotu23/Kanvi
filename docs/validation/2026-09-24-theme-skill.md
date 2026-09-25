@@ -66,3 +66,19 @@
 - 恢复是“只新增”：已存在的主题或历史被跳过并计数；主题包与记录都先写临时目录再原子改名，不覆盖既有数据。
 - 导入校验：`app` 标记与版本、时间、主题/记录数量上限、`theme.json` 契约、来源记录、主题 id 与记录 UUID 格式、内容指纹一致性；任一项不符即 422，不落盘。
 - 未验证：真实 DeepSeek 调用、公众号实测、超大备份（接近 64 MiB）的实际导入表现仍未测试。
+
+## 运行时核验与会发现的缺陷（2026-09-24）
+
+按用户要求实际启动 `npm run dev`（127.0.0.1:8787）并用本机 HTTP 请求核验：
+
+| 请求 | 结果 |
+|---|---|
+| `GET /`、`/styles`、`/generate`、`/references`、`/templates` | 200，`/styles` 返回“风格主题 / 选一套气质”等预期内容 |
+| `GET /api/themes` | 200，6 套种子主题（含中文名与来源）、python3 3.9.6、skill 已安装、DeepSeek 未配置、路径正确 |
+| `GET /api/themes/moss-zen` | 修复后 200，JSON `{id, source:'主题包', html}`，16781 字符，无 `<script>`/`onclick`，含 `<section>` |
+| `GET /api/themes/no-such-theme` | 404 |
+| `GET /api/themes/moss-zen`（外部 Origin） | 403 |
+| `DELETE /api/themes/moss-zen`（无 confirm） | 400 |
+| `GET /api/backup` | 200，6 套主题 + 0 条渲染记录 + 内容指纹 |
+
+**本次核验发现并修复的缺陷：** 主题预览在前端调用 `/api/themes/<id>/preview`，但该路由从未创建（只有 `DELETE /api/themes/[id]`），实际请求会落到 404 页面。修复方式：`/api/themes/[id]` 增加 `GET`（预览），前端改用该地址；同时补上“草案不在主题库、需要回退到 `data/theme-drafts/<id>/` 读取预览”的逻辑（此前草案预览根本无法工作）。回归测试见 `tests/theme-api.test.ts` 的“预览接口先查主题库，再回退到待确认草案目录”。
