@@ -1,12 +1,13 @@
 'use client';
 import type { RenderDetail } from '../features/themes/repository';
-import { articleDocument } from '../features/output/document';
-import { ArticlePreview } from './ArticlePreview';
+import { themeArticleDocument } from '../features/themes/document';
+import { ThemePreview } from './ThemePreview';
 import { CopyArticleButton } from './CopyArticleButton';
 import { downloadFile, renderStatusLabels as statusLabels } from './theme-client';
 const originLabels: Record<string,string> = {seed:'种子示例',generated:'工厂产出',local:'本地主题'};
 export function ThemeResult({detail, busy = false}: {detail: RenderDetail; busy?: boolean}) {
-  const download = () => downloadFile(articleDocument(detail.record.artifact.bodyHtml), `kanvi-${detail.record.theme.id}-${detail.record.id.slice(0,8)}.html`);
+  const document = themeArticleDocument(detail.record.artifact.bodyHtml);
+  const download = () => downloadFile(document, `kanvi-${detail.record.theme.id}-${detail.record.id.slice(0,8)}.html`);
   return <section className="reference-card">
           <span className="eyebrow">{statusLabels[detail.status] ?? detail.status}</span>
           <h2 className="reference-title">{detail.record.parsed.metadata.title ?? '未命名文章'}</h2>
@@ -22,7 +23,8 @@ export function ThemeResult({detail, busy = false}: {detail: RenderDetail; busy?
           {detail.record.validate.issues.map((issue, index) => <div className="issue" key={`v${index}`}><strong>{issue.level}</strong><p>{issue.message}</p></div>)}
           {detail.check?.issues.map((issue, index) => <div className="issue" key={`c${index}`}><strong>{issue.rule}</strong><p>{issue.message}</p></div>)}
           {detail.record.notes.length > 0 && <details className="evidence"><summary>模型说明</summary>{detail.record.notes.map((item, index) => <p key={index}>{item}</p>)}</details>}
-          <div className="paper"><ArticlePreview html={detail.record.artifact.bodyHtml} /></div>
+          <p className="muted">下方整块文章（含底色与内部留白）为复制内容，外侧面板不包含在内。</p>
+          <ThemePreview html={document} />
           <div className="output-actions">
             {detail.status === 'rule-passed' && !busy && <CopyArticleButton key={detail.record.artifact.htmlHash} artifact={detail.record.artifact} />}
             <button className="secondary" disabled={Boolean(busy)} onClick={download}>下载 HTML{detail.status === 'rule-passed' ? '' : '（未通过检查）'}</button>

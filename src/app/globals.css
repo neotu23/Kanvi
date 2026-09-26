@@ -25,6 +25,7 @@ nav{display:flex;gap:20px}nav a,.reference-workspace a{color:var(--accent);text-
 .theme-library-list span{display:block;margin-top:5px;font-size:12px;color:var(--muted)}
 .theme-home-preview-heading{display:flex;align-items:baseline;justify-content:space-between;gap:12px;color:var(--muted);font-size:12px}
 .theme-preview-disclaimer{font-size:11px}
+.theme-paper-note{font-size:12px;color:var(--muted);margin:8px 0 0}
 .theme-home-preview-heading .sample-download{flex-shrink:0}
 .theme-home .theme-preview-frame{margin-top:6px}
 .theme-home .theme-preview-card{padding:16px 24px 24px}

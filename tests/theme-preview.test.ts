@@ -14,6 +14,14 @@ it('六套主题预览包含同一篇完整文章，不再展示槽位占位文�
     expect($('body').text()).toContain('明天仍然会忙，但今天的这一页已经写完了。');
     expect($('body').text()).not.toMatch(/占位|slot:|sig:|\{\{|\*\*/);
     expect($('body section').length).toBeGreaterThan(3);
+    // 正文独立于预览面板仍有留白，复制走的根节点必须自带盒模型。
+    const root = $('body > section');
+    const padding = (root.css('padding') ?? '').split(/\s+/).map(Number.parseFloat);
+    expect(padding[0]).toBeGreaterThanOrEqual(24);
+    expect(padding[1]).toBeGreaterThanOrEqual(20);
+    expect(root.css('box-sizing')).toBe('border-box');
+    expect(root.css('width')).toBe('100%');
+    expect($('head style').text()).not.toContain('*{');
     expect(preview.markdown).toBe(readFileSync('public/samples/slow-afternoon.md', 'utf8'));
     expect($('meta[http-equiv="Content-Security-Policy"]').attr('content')).toContain("default-src 'none'");
   }

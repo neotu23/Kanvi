@@ -7,6 +7,7 @@ import type { CheckReport } from '../validation/normalize-report';
 import { parseFailures, parseThemeArticle } from './article';
 import { loadTheme, themesRoot, type ThemePackage } from './library';
 import { renderPrompt } from './prompt';
+import { applyArticleLayout } from './layout';
 import { ThemeRenderRepository, sha256, themeSnapshotHash, type RenderDetail, type RenderRecord, type ThemeSnapshot } from './repository';
 import { artifactFromHtml, verifyArticle } from './verify-article';
 
@@ -69,7 +70,7 @@ export async function renderArticle(markdown: string, themeId: string, options: 
   const signal = options.signal ?? options.ai?.signal;
   const raw = await completeJson(prompt.input, { ...options.ai, systemPrompt: prompt.system, maxTokens: 8000, signal });
   const { html, notes } = parseModelOutput(raw);
-  const artifact = artifactFromHtml(html);
+  const artifact = artifactFromHtml(applyArticleLayout(html));
   const verification = await verifyArticle(parsed, artifact, { signal, projectRoot, checker: options.checker });
   const record: RenderRecord = {
     schemaVersion: 1, id: randomUUID(), createdAt: new Date().toISOString(), markdown, parsed,

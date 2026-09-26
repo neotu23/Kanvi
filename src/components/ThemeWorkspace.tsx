@@ -89,6 +89,7 @@ export function ThemeWorkspace({ initialThemeId = '' }: { initialThemeId?: strin
               <span>{previewLabel}<span className="theme-preview-disclaimer"> · 未进行正文规格检查</span></span>
               <a className="sample-download" href="/samples/slow-afternoon.md" download="把一个下午还给自己.md">下载示例</a>
             </div>
+            <p className="theme-paper-note">文章底色内已包含排版留白；生成后的整块文章可复制到公众号。</p>
             <ThemePreview html={preview.html} pending={flow.pending} onHeightChange={setPreviewHeight} />
           </section>}
           {!themeId && !busy && <div className="reference-empty"><h2>先选一套主题</h2><p>从上方主题库选择，查看完整文章预览。</p></div>}

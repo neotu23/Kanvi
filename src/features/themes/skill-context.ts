@@ -5,7 +5,7 @@ import { ReferenceError } from '../references/contracts';
 import { skillRoot } from './python';
 
 export const FACTORY_PROMPT_VERSION = 'gzh-theme-factory-v1';
-export const RENDER_PROMPT_VERSION = 'gzh-theme-render-v1';
+export const RENDER_PROMPT_VERSION = 'gzh-theme-render-v2-paper';
 export const MAX_SYSTEM_BYTES = 200 * 1024;
 const MAX_DOC_BYTES = 256 * 1024;
 

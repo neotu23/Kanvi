@@ -2,7 +2,8 @@ import { load } from 'cheerio';
 import { fromMarkdown } from 'mdast-util-from-markdown';
 import type { RootContent } from 'mdast';
 import sanitizeHtml from 'sanitize-html';
-import { articleDocument } from '../output/document';
+import { themeArticleDocument } from './document';
+import { articleThemeMarkdown } from './layout';
 import { ReferenceError } from '../references/contracts';
 
 const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -14,6 +15,7 @@ function plain(node: RootContent): string {
 
 /** 仅装配仓库内的固定示例；用户文章仍走 AI 装配和独立检测。 */
 export function buildThemePreview(themeMarkdown: string, markdown: string): string {
+  themeMarkdown = articleThemeMarkdown(themeMarkdown);
   const slots = new Map<string, string>();
   for (const match of themeMarkdown.matchAll(/^### slot:([\w-]+)[^\n]*\r?\n([\s\S]*?)(?=^#{1,3} |$(?![\s\S]))/gm)) {
     const html = match[2].match(/```html\s*\n([\s\S]*?)```/i)?.[1];
@@ -53,5 +55,5 @@ export function buildThemePreview(themeMarkdown: string, markdown: string): stri
     cursor = index + text.length;
   }
   // 独立文档、禁止外部资源和脚本；正文自然换行，供父页面测量真实高度。
-  return articleDocument(clean).replace('</head>', '<style>html,body{margin:0;padding:0}body{display:flow-root;overflow-wrap:anywhere}*{box-sizing:border-box;max-width:100%}</style></head>');
+  return themeArticleDocument(clean);
 }

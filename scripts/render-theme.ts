@@ -1,7 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { articleDocument } from '../src/features/output/document';
-import { runWrapPreview } from '../src/features/themes/python';
+import { themeArticleDocument } from '../src/features/themes/document';
 import { renderArticle } from '../src/features/themes/render-article';
 
 function options(argv: string[]): Map<string, string> {
@@ -30,8 +29,7 @@ if (!themeId || !input) {
     const dir = resolve('artifacts/renders', detail.record.id);
     await mkdir(dir, { recursive: true, mode: 0o700 });
     await writeFile(join(dir, 'body.html'), detail.record.artifact.bodyHtml, { encoding: 'utf8', mode: 0o600 });
-    const wrapped = await runWrapPreview(join(dir, 'body.html'), join(dir, 'preview.html'));
-    if (!wrapped.ok) await writeFile(join(dir, 'preview.html'), articleDocument(detail.record.artifact.bodyHtml), { encoding: 'utf8', mode: 0o600 });
+    await writeFile(join(dir, 'preview.html'), themeArticleDocument(detail.record.artifact.bodyHtml), { encoding: 'utf8', mode: 0o600 });
     await writeFile(join(dir, 'report.json'), JSON.stringify({
       status: detail.status, themeId: detail.record.theme.id, themeName: detail.record.theme.name,
       htmlHash: detail.record.artifact.htmlHash, checkerCommit: detail.check?.checkerCommit,
@@ -43,7 +41,7 @@ if (!themeId || !input) {
       status: detail.status, recordId: detail.record.id, dir,
       validate: `${detail.record.validate.errorCount} ERROR / ${detail.record.validate.warnCount} WARN`,
       fidelity: detail.record.fidelity.ok ? '原文保真通过' : `保真问题：缺 ${detail.record.fidelity.missing.length} 段`,
-      checker: detail.check?.status, preview: wrapped.ok ? join(dir, 'preview.html') : `${join(dir, 'preview.html')}（skill 预览外壳不可用，已用本地受限预览）`,
+      checker: detail.check?.status, preview: join(dir, 'preview.html'),
       added: detail.record.fidelity.added.slice(0, 5),
     }, null, 2));
     process.exitCode = detail.status === 'rule-passed' ? 0 : detail.status === 'needs-fix' ? 1 : 2;

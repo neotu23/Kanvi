@@ -2,6 +2,9 @@ import {cpSync,mkdtempSync,readFileSync,readdirSync,rmSync,writeFileSync} from '
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {expect,it} from 'vitest';
+import {load} from 'cheerio';
+import {buildClipboardPayload} from '../src/features/output/clipboard';
+import {themeArticleDocument} from '../src/features/themes/document';
 import lock from '../docs/upstream-lock.json';
 import type {AiOptions} from '../src/features/ai/client';
 import type {OutputArtifact} from '../src/features/output/contracts';
@@ -47,8 +50,31 @@ it('受控文章套用主题后通过规格校验并保存完整记录',async()=
  expect(detail.record.fidelity).toMatchObject({ok:true,missing:[]});
  expect(detail.record.theme).toMatchObject({id:'moss-zen',origin:'seed'});
  expect(detail.record.theme.themeMarkdown.length).toBeGreaterThan(1000);
- expect(detail.record.skill).toMatchObject({promptVersion:'gzh-theme-render-v1',commit:'9accaf5039f29aade5d8ca315739b42845b11225'});
+ expect(detail.record.skill).toMatchObject({promptVersion:'gzh-theme-render-v2-paper',commit:'9accaf5039f29aade5d8ca315739b42845b11225'});
  expect(detail.record.rawOutputHash).toMatch(/^[a-f0-9]{64}$/);
+},120_000);
+
+it('模型漏掉留白时在检查前补入正文，复制、预览、导出和历史共用同一产物',async()=>{
+ const current=env();
+ let checkedHtml='';
+ const detail=await run(validHtml.replace('padding:24px 20px','padding:0;padding-left:0!important'),current,{
+  checker:(artifact:OutputArtifact)=>{checkedHtml=artifact.bodyHtml;return passedChecker(artifact);},
+ });
+ const artifact=detail.record.artifact;
+ const root=load(artifact.bodyHtml)('body > section');
+ expect(root.css('padding')).toBe('28px 20px 40px');
+ expect(root.css('padding-left')).toBeUndefined();
+ expect(root.css('box-sizing')).toBe('border-box');
+ expect(root.css('background-color')).toBe('#F7F6F2');
+ expect(root.text()).toContain('回家之前买了一些水果。');
+ expect(checkedHtml).toBe(artifact.bodyHtml);
+ expect(buildClipboardPayload(artifact).html).toBe(checkedHtml);
+ const document=themeArticleDocument(artifact.bodyHtml);
+ expect(document).toContain(`<body>${checkedHtml}</body>`);
+ expect(load(document)('head style').text()).not.toContain('*{');
+ expect(detail.record.theme.themeMarkdown).toContain('28px 20px 40px');
+ const again=await new ThemeRenderRepository(current.renders).get(detail.record.id,CHECKER_COMMIT);
+ expect(again.record.artifact).toEqual(artifact);
 },120_000);
 
 it('真实官方检查器接受该受控产物',async()=>{

@@ -21,7 +21,8 @@
     "verify:integration": "tsx scripts/verify-integration.ts",
     "verify:templates": "tsx scripts/verify-templates.ts",
     "verify:articles": "tsx scripts/verify-articles.ts",
-    "verify:themes": "tsx scripts/verify-themes.ts"
+    "verify:themes": "tsx scripts/verify-themes.ts",
+    "verify:theme-layout": "tsx scripts/verify-theme-layout.ts"
   },
   "dependencies": {
     "cheerio": "1.2.0",
