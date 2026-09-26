@@ -1,4 +1,4 @@
-import { lstat, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ReferenceError } from '../references/contracts';
 import { MAX_THEME_MARKDOWN_BYTES, MAX_PREVIEW_OUTPUT_BYTES, draftsRoot } from './factory';
@@ -119,12 +119,15 @@ export async function confirmDraft(themeId: string, options: ConfirmOptions = {}
 
 入库前由用户逐个确认气质；确认时会重新运行 lint。来源为 MIT 的 gzh-beautify-skill 规范，完整许可见仓库根 THIRD_PARTY_NOTICES.md。
 `, { encoding: 'utf8', mode: 0o600 });
-  // 草案记录只在待确认阶段使用，入库后信息已进入 SOURCE.json。
-  try { await rm(join(source, 'draft.json'), { force: true }); } catch { /* 草案记录缺失不影响入库。 */ }
-  try { await rename(source, target); }
+  try {
+    await mkdir(themes, { recursive: true });
+    await rename(source, target);
+  }
   catch (error) {
     if (['EEXIST', 'ENOTEMPTY'].includes((error as NodeJS.ErrnoException).code ?? '')) throw new ReferenceError('theme-exists', `主题库中已存在 ${themeId}，请先删除或更换 id。`, 409);
     throw new ReferenceError('theme-write', '主题入库失败，草案仍保留。', 500);
   }
+  // 移动成功后才清理草案记录，失败时保留完整草案以便重试。
+  try { await rm(join(target, 'draft.json'), { force: true }); } catch { /* 入库已完成，残留记录不影响主题使用。 */ }
   return { themeId, name: themeJson.name, path: target, origin: 'generated' };
 }

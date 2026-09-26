@@ -48,41 +48,43 @@ export function ThemeWorkspace({ initialThemeId = '' }: { initialThemeId?: strin
   const selectedThemeName = selected && !isBroken(selected) ? selected.name : themeId;
   const canCompose = flow.ready && flow.available;
 
-  return <main className="reference-workspace">
+  return <main className="reference-workspace theme-home">
     <div className="reference-intro"><span className="eyebrow">风格主题</span><h1>选一套气质，装自己的文字</h1>
       <p className="intro">选一套喜欢的主题，看完整文章效果，再导入自己的文字。</p>
     </div>
-    <div className="reference-columns">
-      <aside className="reference-sidebar">
-        <section className="reference-card"><h2>主题库（{themes.length}）</h2>
-          <ul className="reference-list">{themes.map(item => <li key={item.id}>
+    <div className="theme-home-layout">
+        <section className="theme-library" aria-labelledby="theme-library-title">
+          <div className="theme-library-heading">
+            <h2 id="theme-library-title">主题库（{themes.length}）</h2>
+            <div className="theme-library-actions">
+              <button className="text-button" disabled={Boolean(busy)} onClick={() => run('正在刷新主题库…', load)}>刷新主题库</button>
+              {flow.stage === 'preview' && <button className="primary theme-compose-entry" disabled={Boolean(busy) || !canCompose}
+                title={canCompose ? `使用「${selectedThemeName}」，开始导入文章。` : flow.ready ? '请先保存当前主题，再进入正文生成。' : '选择主题并查看预览，再进入正文生成。'}
+                onClick={() => dispatch({ type: 'compose' })}>生成正文 →</button>}
+            </div>
+          </div>
+          <ul className="theme-library-list">{themes.map(item => <li key={item.id}>
             {isBroken(item) ? <button disabled><strong>{item.id}</strong><span>读取失败：{item.error}</span></button>
-              : <button disabled={Boolean(busy)} aria-current={themeId === item.id ? 'true' : undefined} onClick={() => selectTheme(item.id)}>
+              : <button disabled={Boolean(busy)} aria-current={themeId === item.id ? 'true' : undefined} title={`${item.tags.mood.join('、')}｜${item.tags.scenes.join('、')}`} onClick={() => selectTheme(item.id)}>
                   <strong>{item.name}</strong>
-                  <span>{item.tags.mood.join('、')}｜{item.tags.scenes.join('、')}</span>
+                  <span>{item.tags.mood.join('、')}</span>
                 </button>}
           </li>)}</ul>
           {!themes.length && <p className="muted">主题库为空。<a href="/studio">制作第一套模板</a>。</p>}
-          <button className="text-button" disabled={Boolean(busy)} onClick={() => run('正在刷新主题库…', load)}>刷新主题库</button>
         </section>
-      </aside>
       <section id="theme-work-area" className="reference-detail" aria-busy={Boolean(busy)}>
         <p role="status" className="status-message">{busy || notice}</p>
         {error && <p className="error" role="alert">{error}</p>}
         {flow.stage === 'preview' && <>
-          <section className="reference-card theme-entry">
-            <div><h2>生成正文</h2><p className="muted">{canCompose ? `使用「${selectedThemeName}」，开始导入文章。` : flow.ready ? '请先保存当前主题，再进入正文生成。' : '选择主题并查看预览，再进入正文生成。'}</p></div>
-            <button className="primary" disabled={Boolean(busy) || !canCompose} onClick={() => dispatch({ type: 'compose' })}>进入生成正文 →</button>
-          </section>
           {previewPending && <p role="status">正在读取完整文章预览…</p>}
           {preview && preview.id === themeId && <section className="reference-card theme-preview-card">
-            <div className="theme-preview-heading"><div><span className="eyebrow">主题预览</span><h2>{selectedThemeName}</h2></div>
+            <div className="theme-home-preview-heading">
+              <span>示例预览<span className="theme-preview-disclaimer"> · 未进行正文规格检查</span></span>
+              <a className="sample-download" href="/samples/slow-afternoon.md" download="把一个下午还给自己.md">下载示例</a>
             </div>
-            <p className="local-note">同一篇完整文章，用不同主题呈现。示例已保存，可下载复用；预览仅用于选风格，未作为正文进行规格检查。</p>
-            <a className="sample-download" href="/samples/slow-afternoon.md" download="把一个下午还给自己.md">保存示例文章（Markdown）</a>
             <ThemePreview key={preview.id} html={preview.html} />
           </section>}
-          {!themeId && !busy && <div className="reference-empty"><h2>先选一套主题</h2><p>从左侧主题库选择，查看完整文章预览。</p></div>}
+          {!themeId && !busy && <div className="reference-empty"><h2>先选一套主题</h2><p>从上方主题库选择，查看完整文章预览。</p></div>}
         </>}
         {flow.stage === 'compose' && <section className="reference-card"><h2>生成正文</h2>
           <p className="muted">当前主题：{selectedThemeName}</p>

@@ -10,7 +10,7 @@ import { ThemeHistory } from '../src/components/ThemeHistory';
 
 it('首页只保留主题与正文入口，管理功能各自有独立页面', async () => {
  const home=renderToStaticMarkup(await Page({searchParams:Promise.resolve({})}));
- expect(home).toContain('进入生成正文'); expect(home).toContain('主题库');
+ expect(home).toContain('生成正文'); expect(home).toContain('主题库');
  for (const text of ['主题工厂','待确认草案','备份与恢复','本地数据路径','渲染历史','python3','DeepSeek']) expect(home).not.toContain(text);
  const studio=renderToStaticMarkup(createElement(ThemeStudio));
  expect(studio).toContain('新建模板'); expect(studio).toContain('设计提示词'); expect(studio).toContain('完整文章预览');
