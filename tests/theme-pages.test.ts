@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { load } from 'cheerio';
@@ -7,6 +8,7 @@ import Layout from '../src/app/layout';
 import { ThemeStudio } from '../src/components/ThemeStudio';
 import { ThemeSettings } from '../src/components/ThemeSettings';
 import { ThemeHistory } from '../src/components/ThemeHistory';
+import { ThemePreview } from '../src/components/ThemePreview';
 
 it('首页只保留主题与正文入口，管理功能各自有独立页面', async () => {
  const home=renderToStaticMarkup(await Page({searchParams:Promise.resolve({})}));
@@ -23,4 +25,13 @@ it('主导航只保留四个工作入口，旧工具从设置访问', () => {
  expect($('nav a').map((_,n)=>$(n).attr('href')).get()).toEqual(['/','/studio','/history','/settings']);
  const settings=load(renderToStaticMarkup(createElement(ThemeSettings)));
  expect(settings('.legacy-links a').map((_,n)=>settings(n).attr('href')).get()).toEqual(['/demo','/references','/templates','/generate']);
+});
+it('正文预览复用一个 iframe：换主题时保留高度并按加载状态淡入，低动效不再播放过渡', () => {
+ const $=load(renderToStaticMarkup(createElement(ThemePreview,{html:'<html><body><p>正文</p></body></html>'})));
+ expect($('iframe.theme-preview-frame.is-loading').attr('scrolling')).toBe('no');
+ expect($('iframe.theme-preview-frame').attr('sandbox')).toBe('allow-same-origin');
+ const css=readFileSync('src/app/globals.css','utf8');
+ expect(css).toMatch(/\.theme-preview-frame\{[^}]*transition:opacity[^}]*\}/);
+ expect(css).toMatch(/\.theme-preview-frame\.is-loading\{opacity:\.32/);
+ expect(css).toMatch(/prefers-reduced-motion:reduce\)\{\.theme-preview-frame\{transition:none\}/);
 });

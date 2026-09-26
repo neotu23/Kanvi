@@ -2,10 +2,11 @@
 import { useEffect, useReducer, useState } from 'react';
 import type { RenderDetail } from '../features/themes/repository';
 import type { ThemeSummary } from '../features/themes/handlers';
-import { initialThemeFlow, themeFlowReducer } from '../features/themes/workspace-flow';
+import { initialThemeFlow, themeFlowReducer, type ThemePreviewData } from '../features/themes/workspace-flow';
 import { ThemePreview } from './ThemePreview';
 import { ThemeResult } from './ThemeResult';
 import { themeApi as api, useThemeData } from './theme-client';
+import { useScrollAnchor } from './use-scroll-anchor';
 
 const isBroken = (item: ThemeSummary | { id: string; error: string }): item is { id: string; error: string } => 'error' in item;
 
@@ -15,26 +16,29 @@ export function ThemeWorkspace({ initialThemeId = '' }: { initialThemeId?: strin
   const themeId = flow.id;
   const [markdown, setMarkdown] = useState('');
   const [detail, setDetail] = useState<RenderDetail | null>(null);
-  const [preview, setPreview] = useState<{ id: string; html: string; source: string; markdown: string } | null>(null);
-  const [previewPending, setPreviewPending] = useState(false);
+  const { hold, setHeight: setPreviewHeight } = useScrollAnchor();
   useEffect(() => {
     if (overview) dispatch({ type: 'library', ids: overview.themes.filter(item => !isBroken(item)).map(item => item.id) });
   }, [overview]);
   useEffect(() => {
-    if (!themeId) { setPreview(null); setPreviewPending(false); return; }
+    if (!themeId) { dispatch({ type: 'preview-idle' }); return; }
     const controller = new AbortController();
-    setPreview(null); setPreviewPending(true); setError('');
-    void api<{ id: string; html: string; source: string; markdown: string }>(`/api/themes/${encodeURIComponent(themeId)}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) })
+    dispatch({ type: 'preview-request' }); setError('');
+    void api<ThemePreviewData>(`/api/themes/${encodeURIComponent(themeId)}`, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(30000)]) })
       .then(value => {
         if (controller.signal.aborted) return;
-        setPreview(value);
-        dispatch({ type: 'loaded', id: value.id, available: value.source === '主题包' });
+        dispatch({ type: 'preview-ready', preview: value, available: value.source === '主题包' });
       })
-      .catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : '预览读取失败'); })
-      .finally(() => { if (!controller.signal.aborted) setPreviewPending(false); });
+      .catch(e => {
+        if (controller.signal.aborted) return;
+        dispatch({ type: 'preview-failed' });
+        setError(e instanceof Error ? e.message : '预览读取失败');
+      });
     return () => controller.abort();
   }, [themeId, flow.revision]);
   function selectTheme(id: string) {
+    // 只有在主题预览里换主题才需要守位置；从“生成正文”切回来时页面结构本就不同。
+    if (flow.stage === 'preview') hold();
     dispatch({ type: 'select', id }); setDetail(null);
   }
   async function pickFile(file: File | undefined): Promise<void> {
@@ -47,6 +51,9 @@ export function ThemeWorkspace({ initialThemeId = '' }: { initialThemeId?: strin
   const selected = themes.find(item => item.id === themeId);
   const selectedThemeName = selected && !isBroken(selected) ? selected.name : themeId;
   const canCompose = flow.ready && flow.available;
+  const preview = flow.preview;
+  // 正文读取期间保留上一套预览，滚动位置和画面都不跳；标签说明当前显示的是哪一套。
+  const previewLabel = !preview ? '' : flow.pending ? `正在切换到「${selectedThemeName}」` : preview.id === themeId ? '示例预览' : `未能读取「${selectedThemeName}」，仍显示上一套预览`;
 
   return <main className="reference-workspace theme-home">
     <div className="reference-intro"><span className="eyebrow">风格主题</span><h1>选一套气质，装自己的文字</h1>
@@ -76,13 +83,13 @@ export function ThemeWorkspace({ initialThemeId = '' }: { initialThemeId?: strin
         <p role="status" className="status-message">{busy || notice}</p>
         {error && <p className="error" role="alert">{error}</p>}
         {flow.stage === 'preview' && <>
-          {previewPending && <p role="status">正在读取完整文章预览…</p>}
-          {preview && preview.id === themeId && <section className="reference-card theme-preview-card">
+          {flow.pending && !preview && <p role="status">正在读取完整文章预览…</p>}
+          {preview && <section className="reference-card theme-preview-card" data-stale={flow.pending ? 'true' : 'false'}>
             <div className="theme-home-preview-heading">
-              <span>示例预览<span className="theme-preview-disclaimer"> · 未进行正文规格检查</span></span>
+              <span>{previewLabel}<span className="theme-preview-disclaimer"> · 未进行正文规格检查</span></span>
               <a className="sample-download" href="/samples/slow-afternoon.md" download="把一个下午还给自己.md">下载示例</a>
             </div>
-            <ThemePreview key={preview.id} html={preview.html} />
+            <ThemePreview html={preview.html} pending={flow.pending} onHeightChange={setPreviewHeight} />
           </section>}
           {!themeId && !busy && <div className="reference-empty"><h2>先选一套主题</h2><p>从上方主题库选择，查看完整文章预览。</p></div>}
         </>}

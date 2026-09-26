@@ -4,6 +4,7 @@ import type { StudioDetail } from '../features/themes/studio';
 import type { ThemeDraft } from '../features/themes/factory';
 import { themeApi, useThemeData } from './theme-client';
 import { ThemePreview } from './ThemePreview';
+import { useScrollAnchor } from './use-scroll-anchor';
 
 type Selection = { id: string; source: 'saved' | 'draft' };
 type Editor = { name: string; prompt: string; adjustment: string };
@@ -18,12 +19,18 @@ export function ThemeStudio() {
   const [showBase, setShowBase] = useState(false);
   const [started, setStarted] = useState(false);
   const edits = useRef(new Map<string,Editor>());
+  /** 上一次读到的完整预览：换模板时先继续显示它，避免正文区域塌陷、滚动位置被拉回页首。 */
+  const lastPreview = useRef<StudioDetail | null>(null);
+  const { hold, setHeight: setPreviewHeight } = useScrollAnchor();
+  const preview = detail ?? lastPreview.current;
   const keyOf = (value: Selection | null) => value ? `${value.source}:${value.id}` : 'new';
   function choose(value: Selection | null) {
     edits.current.set(keyOf(selection), editor);
+    if (selection) hold();
     setStarted(true); setSelection(value); setDetail(null); setShowBase(false);
     setEditor(edits.current.get(keyOf(value)) ?? blank); setError(''); setNotice('');
   }
+  useEffect(() => { if (detail) lastPreview.current = detail; }, [detail]);
   useEffect(() => {
     if (!overview || started) return;
     const first = overview.themes.find(t => !('error' in t));
@@ -66,7 +73,7 @@ export function ThemeStudio() {
   async function discard() {
     if (!selection || selection.source !== 'draft') return;
     await themeApi(`/api/themes/drafts/${encodeURIComponent(selection.id)}`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'discard'})});
-    edits.current.delete(keyOf(selection)); setSelection(null); setDetail(null); setEditor(blank); await load(); setNotice('草案已丢弃。');
+    edits.current.delete(keyOf(selection)); setSelection(null); setDetail(null); lastPreview.current = null; setEditor(blank); await load(); setNotice('草案已丢弃。');
   }
   return <main className="reference-workspace studio-workspace">
     <div className="studio-title reference-intro"><div><span className="eyebrow">模板制作</span><h1>把喜欢的风格，调成自己的</h1><p className="intro">从已有模板开始微调，也可以写下想法，自行设计一套新模板。</p></div><button className="primary" disabled={disabled} onClick={() => choose(null)}>＋ 新建模板</button></div>
@@ -88,12 +95,12 @@ export function ThemeStudio() {
         {overview && !overview.ai.configured && <p className="warning">配置模型后才能生成，当前可以查看和编辑提示词。<a href="/settings">前往设置</a></p>}
         {currentDraft && !currentDraft.draft?.lint.ok && <p className="warning">草案检查：{currentDraft.draft?.lint.errorCount ?? 0} 项错误，{currentDraft.draft?.lint.warnCount ?? 0} 项提醒。修正后才能保存。</p>}
       </section>
-      <section className="reference-card studio-preview">
+      <section className="reference-card studio-preview" data-stale={loading && preview ? 'true' : 'false'}>
         <div className="theme-preview-heading"><h2>完整文章预览</h2>{detail?.source === 'draft' && <button className="secondary" disabled={disabled || pendingEdits || !currentDraft?.draft?.lint.ok} title="保存生成的预览版本；编辑后的提示词需要先重新生成" onClick={() => void run('正在保存模板…',save)}>未保存主题</button>}{detail?.source === 'saved' && <a href={`/?theme=${encodeURIComponent(detail.id)}`}>去首页使用 →</a>}</div>
         {detail?.source === 'draft' && pendingEdits && <p className="local-note">提示词或名称有修改，请先生成新的调整预览，再保存对应版本。</p>}
         {detail?.baseHtml && <div className="source-switch"><button aria-pressed={showBase} onClick={() => setShowBase(true)}>当前模板</button><button aria-pressed={!showBase} onClick={() => setShowBase(false)}>调整后</button></div>}
         {detail?.design.changes.length ? <details className="evidence" open><summary>检测到的变化</summary><ul>{detail.design.changes.map((c,i) => <li key={i}>{c}</li>)}</ul><p>请结合预览核对是否符合预期。</p></details> : null}
-        {detail ? <><ThemePreview key={`${detail.id}-${showBase}`} html={showBase && detail.baseHtml ? detail.baseHtml : detail.html} />{detail.source === 'draft' && <details className="evidence"><summary>草案管理</summary><button className="text-button" disabled={disabled} onClick={() => void run('正在丢弃草案…',discard)}>丢弃此草案</button></details>}</> : <div className="reference-empty"><h2>{loading ? '正在加载预览' : '让文字先穿上这套风格'}</h2><p>选择已有模板，或填写设计提示词生成完整文章预览。</p></div>}
+        {preview ? <><ThemePreview html={showBase && detail?.baseHtml ? detail.baseHtml : preview.html} pending={loading} onHeightChange={setPreviewHeight} />{detail?.source === 'draft' && <details className="evidence"><summary>草案管理</summary><button className="text-button" disabled={disabled} onClick={() => void run('正在丢弃草案…',discard)}>丢弃此草案</button></details>}</> : <div className="reference-empty"><h2>{loading ? '正在加载预览' : '让文字先穿上这套风格'}</h2><p>选择已有模板，或填写设计提示词生成完整文章预览。</p></div>}
       </section>
     </div>
   </main>;
