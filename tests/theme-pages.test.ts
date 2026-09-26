@@ -34,4 +34,8 @@ it('正文预览复用一个 iframe：换主题时保留高度并按加载状态
  expect(css).toMatch(/\.theme-preview-frame\{[^}]*transition:opacity[^}]*\}/);
  expect(css).toMatch(/\.theme-preview-frame\.is-loading\{opacity:\.32/);
  expect(css).toMatch(/prefers-reduced-motion:reduce\)\{\.theme-preview-frame\{transition:none\}/);
+ // 换主题时只让正文区参与视图过渡，页面其余部分不跟着闪
+ expect(css).toContain('view-transition-name:theme-preview');
+ expect(css).toMatch(/::view-transition-old\(root\),::view-transition-new\(root\)\{animation:none\}/);
+ expect(css).toMatch(/::view-transition-group\(theme-preview\)[^{]*\{animation-duration:\.32s/);
 });

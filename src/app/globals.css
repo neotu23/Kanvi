@@ -8,7 +8,11 @@ nav{display:flex;gap:20px}nav a,.reference-workspace a{color:var(--accent);text-
 .reference-card .template-actions select{margin:0;flex:1 1 200px;width:auto}
 .reference-card code{font-size:12px;background:#f2f4ef;padding:1px 5px;border-radius:4px}
 
-.theme-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.theme-preview-heading h2{margin:4px 0 0}.theme-preview-heading .secondary{flex-shrink:0}.theme-preview-frame{display:block;width:100%;border:0;background:transparent;margin:24px auto 0;max-width:677px;transition:opacity .36s ease,transform .36s ease}.theme-preview-frame.is-loading{opacity:.32;transform:translateY(4px)}.sample-download{font-size:12px}#theme-work-area{scroll-margin-top:24px}
+.theme-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.theme-preview-heading h2{margin:4px 0 0}.theme-preview-heading .secondary{flex-shrink:0}.theme-preview-frame{display:block;width:100%;border:0;background:transparent;margin:24px auto 0;max-width:677px;transition:opacity .36s ease,transform .36s ease;view-transition-name:theme-preview}.theme-preview-frame.is-loading{opacity:.32;transform:translateY(4px)}
+/* 换主题时只让正文区做交叉淡化：页面其余部分保持不动，正文区由浏览器拼接旧画面与新画面 */
+::view-transition-old(root),::view-transition-new(root){animation:none}
+::view-transition-group(theme-preview),::view-transition-old(theme-preview),::view-transition-new(theme-preview){animation-duration:.32s;animation-timing-function:cubic-bezier(.4,0,.2,1)}
+.sample-download{font-size:12px}#theme-work-area{scroll-margin-top:24px}
 
 .theme-home-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
 .theme-library{min-width:0}
@@ -27,7 +31,7 @@ nav{display:flex;gap:20px}nav a,.reference-workspace a{color:var(--accent);text-
 .theme-preview-disclaimer{font-size:11px}
 .theme-paper-note{font-size:12px;color:var(--muted);margin:8px 0 0}
 .theme-home-preview-heading .sample-download{flex-shrink:0}
-.theme-home .theme-preview-frame{margin-top:6px}
+.theme-home .theme-preview-frame{margin-top:14px}
 .theme-home .theme-preview-card{padding:16px 24px 24px}
 .theme-preview-card[data-stale=true],.studio-preview[data-stale=true]{border-color:#c8d2c3}
 @media(prefers-reduced-motion:reduce){.theme-preview-frame{transition:none}.theme-preview-frame.is-loading{opacity:1;transform:none}}
