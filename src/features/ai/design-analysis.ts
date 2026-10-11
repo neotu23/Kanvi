@@ -12,7 +12,7 @@ export function analysisInput(snapshot: ReferenceSnapshot) {
 }
 export async function analyzeDesign(snapshot: ReferenceSnapshot, options: AiOptions = {}): Promise<AnalysisRecord> {
   const input = JSON.stringify(analysisInput(snapshot));
-  const config = options.config ?? aiConfig();
+  const config = options.config ?? await aiConfig();
   const result = await completeJson(input, { ...options, config });
   return {
     version: 1, id: randomUUID(), referenceId: snapshot.id, referenceHash: snapshot.contentHash,

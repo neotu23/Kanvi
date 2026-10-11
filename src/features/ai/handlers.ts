@@ -28,7 +28,7 @@ export function createAnalysisHandlers(references: ReferenceRepository, analyses
       if (!isLocalRequest(request)) return json({ error: '仅接受本机页面的请求。', code: 'forbidden' }, 403);
       try {
         const snapshot = await references.get(id);
-        return json({ ...await analyses.list(snapshot, new URL(request.url).searchParams.get('after') ?? undefined), ai: aiConfigurationStatus() });
+        return json({ ...await analyses.list(snapshot, new URL(request.url).searchParams.get('after') ?? undefined), ai: await aiConfigurationStatus() });
       } catch (error) { return errorResponse(error); }
     },
   };

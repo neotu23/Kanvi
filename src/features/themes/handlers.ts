@@ -78,7 +78,7 @@ export function createThemeHandlers(options: ThemeHandlerOptions = {}) {
     // 损坏的渲染记录会让列表页报错，不隐藏问题。
     const rendered = (await repository.list(checkerConfig().commit)).renders;
     return {
-      themes: listed, drafts: await listDrafts(drafts), ai: aiConfigurationStatus(),
+      themes: listed, drafts: await listDrafts(drafts), ai: await aiConfigurationStatus(),
       python: { available: Boolean(version), version }, skill, renders: rendered,
       paths: { project: projectRoot, themes, drafts, renders, artifacts: resolve(projectRoot, 'artifacts') },
     };

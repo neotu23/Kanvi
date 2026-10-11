@@ -1,8 +1,15 @@
 import { ReferenceError } from '../references/contracts';
 import { readBounded } from '../shared/io';
 import { ANALYSIS_SYSTEM_PROMPT } from './schema';
+import { apiKeyHint, DEFAULT_MODEL, readStoredSettings, settingsFile } from './settings';
 
 export interface AiConfig { apiKey: string; model: string }
+export interface AiConfigurationStatus {
+  configured: boolean; model: string; source: 'local' | 'env' | 'none';
+  /** 只回显尾 4 位，完整密钥不进入任何浏览器响应。 */
+  keyHint: string | null;
+  settingsPath: string; updatedAt: string | null; fileError: string | null;
+}
 export interface AiOptions {
   config?: AiConfig; transport?: typeof fetch; timeoutMs?: number; signal?: AbortSignal; systemPrompt?: string;
   /** 默认 6000；生成 HTML 的调用需要更大的输出预算。 */
@@ -10,15 +17,76 @@ export interface AiOptions {
   /** 默认 100 KiB；超过上限直接报错，不截断后冒充完整输入。 */
   inputLimit?: number;
 }
-export function aiConfig(): AiConfig {
-  return { apiKey: process.env.DEEPSEEK_API_KEY?.trim() ?? '', model: process.env.DEEPSEEK_MODEL?.trim() || 'deepseek-flash' };
+/**
+ * 生效配置：本地设置（data/settings.json）优先，环境变量作为回退。
+ * 设置文件损坏时只回退到环境变量，不阻断正文生成；损坏状态由 aiConfigurationStatus 显示。
+ */
+export async function aiConfig(file: string = settingsFile()): Promise<AiConfig> {
+  const stored = await readStoredSettings(file);
+  const local = stored.state === 'ok' ? stored.settings : null;
+  return {
+    apiKey: local?.apiKey || process.env.DEEPSEEK_API_KEY?.trim() || '',
+    model: local?.model || process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+  };
 }
-export function aiConfigurationStatus() {
-  const config = aiConfig();
-  return { configured: Boolean(config.apiKey), model: config.model };
+export async function aiConfigurationStatus(file: string = settingsFile()): Promise<AiConfigurationStatus> {
+  const stored = await readStoredSettings(file);
+  const local = stored.state === 'ok' ? stored.settings : null;
+  const apiKey = local?.apiKey || process.env.DEEPSEEK_API_KEY?.trim() || '';
+  return {
+    configured: Boolean(apiKey),
+    model: local?.model || process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+    source: !apiKey ? 'none' : local?.apiKey ? 'local' : 'env',
+    keyHint: apiKeyHint(apiKey),
+    settingsPath: file,
+    updatedAt: stored.state === 'ok' ? stored.updatedAt : null,
+    fileError: stored.state === 'damaged' ? stored.error : null,
+  };
+}
+export interface AiConnectionTest { ok: boolean; model: string; models: string[]; modelAvailable: boolean }
+export interface AiConnectionTestOptions {
+  apiKey?: string; model?: string; transport?: typeof fetch; timeoutMs?: number; config?: AiConfig;
+}
+/**
+ * 低成本连通性检查：只请求 /models，不发送对话内容，也不消耗生成额度。
+ * 未经保存的 Key 可以只用于本次检查。
+ */
+export async function aiConnectionTest(options: AiConnectionTestOptions = {}): Promise<AiConnectionTest> {
+  const config = options.config ?? await aiConfig();
+  const apiKey = (options.apiKey ?? config.apiKey).trim();
+  const model = (options.model ?? config.model).trim() || DEFAULT_MODEL;
+  if (!apiKey) throw new ReferenceError('ai-not-configured', '尚未配置 DeepSeek API Key，请先填写并保存。', 503);
+  if (!/^[a-zA-Z0-9._-]{1,80}$/.test(model)) throw new ReferenceError('ai-config', '模型名配置无效。', 400);
+  const timeout = AbortSignal.timeout(options.timeoutMs ?? 20_000);
+  let response: Response;
+  try {
+    response = await (options.transport ?? fetch)('https://api.deepseek.com/models', {
+      method: 'GET', signal: timeout, redirect: 'error', cache: 'no-store',
+      headers: { Authorization: `Bearer ${apiKey}`, Accept: 'application/json' },
+    });
+  } catch {
+    if (timeout.aborted) throw new ReferenceError('ai-timeout', '连接测试超时，请检查网络后重试。', 408);
+    // Never expose provider bodies, request headers, or transport exceptions containing credentials.
+    throw new ReferenceError('ai-network', '无法连接 DeepSeek，请检查网络后重试。', 502);
+  }
+  if (!response.ok) {
+    void response.body?.cancel().catch(() => {});
+    const messages: Record<number, string> = { 401: 'API Key 无效，请检查后重新填写。', 402: 'DeepSeek 账户余额不足。', 403: '这个 API Key 无权访问模型列表。', 429: 'DeepSeek 请求频率受限，请稍后重试。' };
+    throw new ReferenceError('ai-http', messages[response.status] ?? `DeepSeek 返回 HTTP ${response.status}，请稍后重试。`, 502);
+  }
+  const body = await readBounded(response.body, 256 * 1024, timeout);
+  let models: string[] = [];
+  try {
+    const parsed = JSON.parse(body) as { data?: Array<{ id?: unknown }> };
+    // 只保留符合模型名格式的 id，避免把上游任意文本透传到界面。
+    models = [...new Set((Array.isArray(parsed?.data) ? parsed.data : [])
+      .map(item => item?.id)
+      .filter((id): id is string => typeof id === 'string' && /^[a-zA-Z0-9._-]{1,80}$/.test(id)))].slice(0, 50);
+  } catch { models = []; }
+  return { ok: true, model, models, modelAvailable: models.length === 0 || models.includes(model) };
 }
 export async function completeJson(input: string, options: AiOptions = {}): Promise<unknown> {
-  const config = options.config ?? aiConfig();
+  const config = options.config ?? await aiConfig();
   if (!config.apiKey) throw new ReferenceError('ai-not-configured', '尚未配置服务端 DEEPSEEK_API_KEY；参考已保存在本地，配置后可分析。', 503);
   if (!/^[a-zA-Z0-9._-]{1,80}$/.test(config.model)) throw new ReferenceError('ai-config', '服务端模型名配置无效。', 503);
   const maxTokens = options.maxTokens ?? 6000;

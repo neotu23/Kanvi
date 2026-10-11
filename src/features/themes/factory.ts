@@ -79,7 +79,7 @@ export async function createThemeDraft(brief: string, options: FactoryOptions = 
   const drafts = options.draftsRoot ?? draftsRoot();
   const docs = await skillDocs(projectRoot);
   const commit = skillCommit(projectRoot);
-  const model = (options.ai?.config ?? aiConfig()).model;
+  const model = (options.ai?.config ?? await aiConfig()).model;
   const signal = options.signal ?? options.ai?.signal;
   const system = assembleSystemPrompt([
     FACTORY_RULES,

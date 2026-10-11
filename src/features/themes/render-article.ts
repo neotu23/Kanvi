@@ -68,7 +68,9 @@ export async function renderArticle(markdown: string, themeId: string, options: 
   const theme = await loadTheme(themeId, options.themesRootPath ?? themesRoot());
   const prompt = await renderPrompt(parsed, markdown, theme, projectRoot);
   const signal = options.signal ?? options.ai?.signal;
-  const raw = await completeJson(prompt.input, { ...options.ai, systemPrompt: prompt.system, maxTokens: 8000, signal });
+  // 一次读取生效配置，保证请求所用的模型与历史记录里记下的模型一致。
+  const config = options.ai?.config ?? await aiConfig();
+  const raw = await completeJson(prompt.input, { ...options.ai, config, systemPrompt: prompt.system, maxTokens: 8000, signal });
   const { html, notes } = parseModelOutput(raw);
   const artifact = artifactFromHtml(applyArticleLayout(html));
   const verification = await verifyArticle(parsed, artifact, { signal, projectRoot, checker: options.checker });
@@ -76,7 +78,7 @@ export async function renderArticle(markdown: string, themeId: string, options: 
     schemaVersion: 1, id: randomUUID(), createdAt: new Date().toISOString(), markdown, parsed,
     theme: snapshotOf(theme, prompt.themeMarkdown),
     skill: { commit: prompt.skillCommit, promptVersion: prompt.promptVersion },
-    model: (options.ai?.config ?? aiConfig()).model,
+    model: config.model,
     articleHash: prompt.articleHash, themeHash: prompt.themeHash, rawOutputHash: sha256(JSON.stringify(raw)), notes,
     artifact,
     validate: {

@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { ReferenceError } from '../references/contracts';
+import { readStoredSettings } from '../ai/settings';
 import { validateDesign } from './design';
 import { themeDir, themesRoot } from './library';
 import { MAX_PREVIEW_BYTES, MAX_THEME_FILE_BYTES, themeIdPattern, validateThemeJson, validateThemeSource } from './schema';
@@ -34,11 +35,10 @@ async function readJson(path: string): Promise<unknown | null> {
   if (!info?.isFile() || info.size > MAX_RECORD_BYTES) return null;
   try { return JSON.parse(await readFile(path, 'utf8')); } catch { return null; }
 }
-/** 备份内容不得包含本机密钥；导出前显式校验，不依赖“密钥本来就不在数据里”这个假设。 */
-export function ensureNoSecrets(backup: BackupFile): void {
-  const secret = process.env.DEEPSEEK_API_KEY?.trim();
-  if (!secret || secret.length < 8) return;
-  if (JSON.stringify(backup).includes(secret)) throw new ReferenceError('backup-secret', '备份内容包含本机 API Key，已拒绝导出。', 500);
+/** 备份内容不得包含本机密钥（环境变量与本地设置都算）；导出前显式校验，不依赖“密钥本来就不在数据里”这个假设。 */
+export function ensureNoSecrets(backup: BackupFile, extraSecrets: readonly string[] = []): void {
+  const secrets = [process.env.DEEPSEEK_API_KEY ?? '', ...extraSecrets].map(value => value.trim()).filter(value => value.length >= 8);
+  if (secrets.some(secret => JSON.stringify(backup).includes(secret))) throw new ReferenceError('backup-secret', '备份内容包含本机 API Key，已拒绝导出。', 500);
 }
 
 export async function exportBackup(options: BackupOptions = {}): Promise<BackupFile> {
@@ -81,7 +81,8 @@ export async function exportBackup(options: BackupOptions = {}): Promise<BackupF
     app: 'kanvi-theme-backup', version: BACKUP_VERSION, createdAt: new Date().toISOString(),
     themes, renders, skipped, contentHash: contentHashOf(themes, renders),
   };
-  ensureNoSecrets(backup);
+  const stored = await readStoredSettings();
+  ensureNoSecrets(backup, stored.state === 'ok' ? [stored.settings.apiKey] : []);
   return backup;
 }
 
