@@ -4,6 +4,7 @@ import type { TemplateDetail } from '../features/templates/repository';
 import type { TemplateSummary } from '../features/templates/handlers';
 import { ArticlePreview } from './ArticlePreview';
 import { CopyArticleButton } from './CopyArticleButton';
+import { CopyHtmlButton } from './CopyHtmlButton';
 import { nodes } from '../features/templates/schema';
 import { articleDocument } from '../features/output/document';
 const labels={draft:'设计草稿',checking:'正在检测','needs-fix':'需要修正','rule-passed':'规则检测通过',failed:'检测失败'};
@@ -38,7 +39,7 @@ export function TemplateWorkspace({initialId,initialVersion}:{initialId?:string;
  </section>
  {detail.attempt&&<section className="reference-card"><h2>本版本的样例</h2><div className="paper"><ArticlePreview html={detail.attempt.artifact.bodyHtml}/></div>
  {detail.check&&<><p className={detail.status==='rule-passed'?'muted':'warning'}>{detail.check.error??(detail.status==='rule-passed'?'样例在当前规则下未发现问题。':'样例仍有排版问题，请查看诊断。')}</p>{detail.check.issues.map((issue,i)=><div className="issue" key={i}><strong>{issue.rule}</strong><p>{issue.message}</p>{issue.outerHTML&&<details><summary>节点证据</summary><code>{issue.outerHTML}</code></details>}</div>)}{detail.check.warnings?.map((w,i)=><p className="warning" key={i}>{w}</p>)}</>}
- <div className="output-actions">{detail.status==='rule-passed'&&!busy&&<CopyArticleButton key={detail.attempt.artifact.htmlHash} artifact={detail.attempt.artifact}/>}<button className="secondary" disabled={Boolean(busy)} onClick={download}>下载 HTML{detail.status==='rule-passed'?'':'（未通过检测）'}</button></div>
+ <div className="output-actions">{detail.status==='rule-passed'&&!busy&&<CopyArticleButton key={detail.attempt.artifact.htmlHash} artifact={detail.attempt.artifact}/>}<div className="output-row"><button className="secondary" disabled={Boolean(busy)} onClick={download}>下载 HTML{detail.status==='rule-passed'?'':'（未通过检测）'}</button><CopyHtmlButton html={articleDocument(detail.attempt.artifact.bodyHtml)} disabled={Boolean(busy)}/></div></div>
  <details className="evidence"><summary>样例检测绑定</summary><p>正文指纹：{detail.attempt.artifact.htmlHash}</p><p>检查器版本：{detail.check?.checkerCommit??'尚未返回'}</p></details></section>}</>:!busy&&<div className="reference-empty"><h2>选择一个模板版本</h2><p>从左侧打开，或先从参考设计制作模板。</p></div>}
  </section></div></main>;
 }

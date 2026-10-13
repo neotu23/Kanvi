@@ -8,6 +8,7 @@ import { parseFailures, parseThemeArticle } from './article';
 import { loadTheme, themesRoot, type ThemePackage } from './library';
 import { renderPrompt } from './prompt';
 import { applyArticleLayout } from './layout';
+import { resolveOptionalMetadata } from './optional-metadata';
 import { ThemeRenderRepository, sha256, themeSnapshotHash, type RenderDetail, type RenderRecord, type ThemeSnapshot } from './repository';
 import { artifactFromHtml, verifyArticle } from './verify-article';
 
@@ -72,14 +73,18 @@ export async function renderArticle(markdown: string, themeId: string, options: 
   const config = options.ai?.config ?? await aiConfig();
   const raw = await completeJson(prompt.input, { ...options.ai, config, systemPrompt: prompt.system, maxTokens: 8000, signal });
   const { html, notes } = parseModelOutput(raw);
-  const artifact = artifactFromHtml(applyArticleLayout(html));
-  const verification = await verifyArticle(parsed, artifact, { signal, projectRoot, checker: options.checker });
+  const resolved = await resolveOptionalMetadata(applyArticleLayout(html), parsed, markdown, { projectRoot, signal });
+  const artifact = artifactFromHtml(resolved.html);
+  const verification = await verifyArticle(parsed, artifact, {
+    signal, projectRoot, checker: options.checker,
+    fidelity: { enforceSourceToc: true, themeMarkdown: prompt.themeMarkdown },
+  });
   const record: RenderRecord = {
     schemaVersion: 1, id: randomUUID(), createdAt: new Date().toISOString(), markdown, parsed,
     theme: snapshotOf(theme, prompt.themeMarkdown),
     skill: { commit: prompt.skillCommit, promptVersion: prompt.promptVersion },
     model: config.model,
-    articleHash: prompt.articleHash, themeHash: prompt.themeHash, rawOutputHash: sha256(JSON.stringify(raw)), notes,
+    articleHash: prompt.articleHash, themeHash: prompt.themeHash, rawOutputHash: sha256(JSON.stringify(raw)), notes: [...resolved.notes, ...notes].slice(0, 20),
     artifact,
     validate: {
       ok: verification.validate.ok, errorCount: verification.validate.errorCount, warnCount: verification.validate.warnCount,

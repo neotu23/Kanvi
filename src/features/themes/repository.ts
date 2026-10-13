@@ -9,6 +9,7 @@ import { parseThemeArticle, type ParsedThemeArticle } from './article';
 import { checkFidelity, type FidelityResult } from './verify-article';
 import type { ScriptIssue } from './python';
 import type { ThemeJson } from './schema';
+import { SOURCE_TOC_PROMPT_VERSION } from './skill-context';
 
 export const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -51,7 +52,9 @@ function validateRecord(raw: RenderRecord, id: string): RenderRecord {
     throw new Error('invalid render fields');
   }
   // 保真结果也要能复算，避免记录里的结论与产物脱节。
-  if (!same(checkFidelity(raw.parsed, artifact.bodyHtml), raw.fidelity)) throw new Error('fidelity mismatch');
+  const fidelityOptions = raw.skill.promptVersion === SOURCE_TOC_PROMPT_VERSION
+    ? { enforceSourceToc: true, themeMarkdown: raw.theme.themeMarkdown } : {};
+  if (!same(checkFidelity(raw.parsed, artifact.bodyHtml, fidelityOptions), raw.fidelity)) throw new Error('fidelity mismatch');
   return raw;
 }
 function checkedReport(value: unknown, artifact: OutputArtifact, commit: string): CheckReport {

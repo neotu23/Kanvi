@@ -4,6 +4,7 @@ import type { PreparedArticle } from '../features/articles/handlers';
 import type { ArticleDetail, ArticleSummary } from '../features/articles/repository';
 import { ArticlePreview } from './ArticlePreview';
 import { CopyArticleButton } from './CopyArticleButton';
+import { CopyHtmlButton } from './CopyHtmlButton';
 import { articleDocument } from '../features/output/document';
 const labels={checking:'检测中',failed:'检测失败','needs-fix':'需调整','rule-passed':'规则检测通过'};
 type History={articles:ArticleSummary[];nextCursor:string|null};
@@ -57,7 +58,7 @@ export function ArticleWorkspace(){
    </section>}
    {detail&&<section className="reference-card"><span className="eyebrow">{labels[detail.status]}</span><h2>{detail.record.parsed.metadata.title??'生成的正文'}</h2><p className="muted">{detail.record.template.record.definition.name} · {detail.record.template.record.version.slice(0,8)} · {new Date(detail.record.createdAt).toLocaleString('zh-CN')}</p><div className="paper"><ArticlePreview html={detail.record.artifact.bodyHtml}/></div>
     {detail.error&&<p className="error">{detail.error}</p>}{detail.check?.error&&<p className="error">{detail.check.error}</p>}{detail.check?.issues.map((issue,i)=><div className="issue" key={i}><strong>{issue.rule}</strong><p>{issue.message}</p>{issue.outerHTML&&<details><summary>节点证据</summary><code>{issue.outerHTML}</code></details>}</div>)}{detail.check?.warnings?.map((w,i)=><p className="warning" key={i}>{w}</p>)}
-    <div className="output-actions">{detail.status==='rule-passed'&&!busy&&<CopyArticleButton key={detail.record.artifact.htmlHash} artifact={detail.record.artifact}/>}<button className="secondary" disabled={Boolean(busy)} onClick={download}>下载 HTML{detail.status==='rule-passed'?'':'（未通过检测）'}</button></div>
+    <div className="output-actions">{detail.status==='rule-passed'&&!busy&&<CopyArticleButton key={detail.record.artifact.htmlHash} artifact={detail.record.artifact}/>}<div className="output-row"><button className="secondary" disabled={Boolean(busy)} onClick={download}>下载 HTML{detail.status==='rule-passed'?'':'（未通过检测）'}</button><CopyHtmlButton html={articleDocument(detail.record.artifact.bodyHtml)} disabled={Boolean(busy)}/></div></div>
     <p className="local-note">规则检测不是公众号实际兼容保证。原文、模板版本和本篇报告已分别保存。</p><details className="evidence"><summary>本篇检测记录</summary><p>原文指纹：{detail.record.parsed.sourceHash}</p><p>正文指纹：{detail.record.artifact.htmlHash}</p><p>检查器版本：{detail.check?.checkerCommit??'未完成'}</p><p>解析版本：{detail.record.parsed.parserVersion}</p><pre className="source-excerpt">{detail.record.markdown}</pre></details>
    </section>}
    {!prepared&&!detail&&!busy&&<div className="reference-empty"><h2>从一篇日记开始</h2><p>选择本机 Markdown 文件。无需配置 AI，即可使用已通过样例检测的模板。</p></div>}

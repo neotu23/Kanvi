@@ -5,6 +5,7 @@ import type { CheckReport } from '../features/validation/normalize-report';
 import { articleDocument } from '../features/output/document';
 import { ArticlePreview } from './ArticlePreview';
 import { CopyArticleButton } from './CopyArticleButton';
+import { CopyHtmlButton } from './CopyHtmlButton';
 type Result={artifact:OutputArtifact;check:CheckReport};
 export function ValidationDemo() {
  const [result,setResult]=useState<Result|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
@@ -38,7 +39,7 @@ export function ValidationDemo() {
      <p>{passed?'当前规则未发现问题。请继续在公众号中保存草稿、检查手机预览。':result.check.error||'请查看下面的规则提示。'}</p>
      {result.check.issues.map((issue,i)=><div className="issue" key={i}><strong>{issue.rule}</strong><p>{issue.message}</p>{issue.paragraphIndex!==undefined?<small>段落索引：{issue.paragraphIndex}</small>:null}{issue.outerHTML?<details><summary>节点证据</summary><code>{issue.outerHTML}</code></details>:null}</div>)}
      {result.check.warnings?.map((w,i)=><p className="warning" key={i}>{w}</p>)}
-     <div className="output-actions">{passed?<CopyArticleButton key={result.artifact.htmlHash} artifact={result.artifact}/>:null}<button className="secondary" onClick={download}>下载 HTML{passed?'':'（未通过检测）'}</button></div>
+     <div className="output-actions">{passed?<CopyArticleButton key={result.artifact.htmlHash} artifact={result.artifact}/>:null}<div className="output-row"><button className="secondary" onClick={download}>下载 HTML{passed?'':'（未通过检测）'}</button><CopyHtmlButton html={articleDocument(result.artifact.bodyHtml)} disabled={busy}/></div></div>
      <details className="evidence"><summary>检测记录</summary><p>检查版本：{result.check.checkerCommit}</p><p>正文指纹：{result.artifact.htmlHash}</p><p>公众号实测：待确认</p></details>
     </section>:null}
    </div>

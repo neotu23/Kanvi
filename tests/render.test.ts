@@ -41,6 +41,111 @@ const run=(html:string,env:{themes:string;renders:string},extra:Record<string,un
  projectRoot:process.cwd(),themesRootPath:env.themes,repository:new ThemeRenderRepository(env.renders),checker:passedChecker,ai:ai(html),...extra,
 });
 
+const optionalLine=(name:string)=>`<p style="margin:0 0 6px;font-size:15px;line-height:1.9;"><span leaf="">{{${name}}}</span></p>`;
+const appendToArticle=(html:string,tail:string)=>html.slice(0,html.lastIndexOf('</section>'))+tail+'</section>';
+const withOptionalMetadata=(html:string)=>appendToArticle(html,`${optionalLine('date')}<section style="margin:28px 0 0;border-top:1px solid #B42318;">${optionalLine('author')}${optionalLine('bio')}</section>`);
+const tocHtml='<section style="margin:0 0 40px;text-align:center;">'+['目录','行走。','阅读。','回家。'].map(text=>`<p style="font-size:15px;line-height:1.9;"><span leaf="">${text}</span></p>`).join('')+'</section>';
+
+it('模型新增目录时即使两道规格检查通过也不能开放复制，重启后仍为需修正',async()=>{
+ const current=env();
+ try {
+  const detail=await run(appendToArticle(validHtml,tocHtml),current);
+  expect(detail.record.validate.ok).toBe(true);
+  expect(detail.check?.status).toBe('passed');
+  expect(detail.status).toBe('needs-fix');
+  expect(detail.record.fidelity).toMatchObject({ok:false,missing:[]});
+  expect(detail.record.fidelity.unexpectedToc?.length).toBeGreaterThan(0);
+  expect(detail.record.artifact.bodyHtml).toContain('目录');
+  expect((await new ThemeRenderRepository(current.renders).get(detail.record.id,CHECKER_COMMIT)).status).toBe('needs-fix');
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},120_000);
+
+it('原文已经有目录时保留原条目，按新规则通过',async()=>{
+ const current=env();
+ try {
+  const detail=await renderArticle(article+'\n\n## 目录\n\n- 行走。\n- 阅读。\n- 回家。','moss-zen',{
+   projectRoot:process.cwd(),themesRootPath:current.themes,repository:new ThemeRenderRepository(current.renders),checker:passedChecker,ai:ai(appendToArticle(validHtml,tocHtml)),
+  });
+  expect(detail.status).toBe('rule-passed');
+  expect(detail.record.fidelity.unexpectedToc).toEqual([]);
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},120_000);
+
+it('旧版带目录的历史仍按原规则复算，不修改或判成损坏',async()=>{
+ const current=env();
+ const legacyRoot=mkdtempSync(join(tmpdir(),'kanvi-legacy-renders-'));
+ try {
+  const detail=await run(appendToArticle(validHtml,tocHtml),current);
+  const legacy={...detail.record,skill:{...detail.record.skill,promptVersion:'gzh-theme-render-v3-optional-metadata'},fidelity:checkFidelity(detail.record.parsed,detail.record.artifact.bodyHtml)};
+  const repository=new ThemeRenderRepository(legacyRoot);
+  const stored=await repository.create(legacy);
+  await repository.finish(stored,detail.check!);
+  expect((await new ThemeRenderRepository(legacyRoot).get(stored.id,CHECKER_COMMIT)).status).toBe('rule-passed');
+  expect(JSON.parse(readFileSync(join(legacyRoot,stored.id,'record.json'),'utf8'))).toEqual(legacy);
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});rmSync(legacyRoot,{recursive:true,force:true});}
+},120_000);
+
+it('未提供日期和署名时省略主题可选空行，真实检查后开放富文本复制',async()=>{
+ const current=env();
+ try {
+  const detail=await run(withOptionalMetadata(validHtml),current,{checker:undefined});
+  expect(detail.status).toBe('rule-passed');
+  expect(detail.check?.status).toBe('passed');
+  expect(detail.record.validate).toMatchObject({ok:true,errorCount:0,warnCount:0});
+  expect(detail.record.fidelity.ok).toBe(true);
+  expect(detail.record.artifact.bodyHtml).not.toMatch(/\{\{(?:date|author|bio)\}\}/);
+  expect(detail.record.artifact.bodyHtml).not.toContain('border-top:1px solid #B42318');
+  expect(detail.record.artifact.bodyHtml).toContain('回家之前买了一些水果。');
+  expect(detail.record.notes.join(' ')).toContain('省略');
+  const again=await new ThemeRenderRepository(current.renders).get(detail.record.id,CHECKER_COMMIT);
+  expect(buildClipboardPayload(again.record.artifact).html).toBe(detail.record.artifact.bodyHtml);
+  expect(again.status).toBe('rule-passed');
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},240_000);
+
+it('主题日期占位符使用原文属性值，保留已有署名及其样式',async()=>{
+ const current=env();
+ try {
+  const html=appendToArticle(validHtml,`${optionalLine('date')}<section style="border-top:1px solid #B42318;"><p style="font-size:15px;line-height:1.9;"><span leaf="">河边记录者</span></p>${optionalLine('bio')}</section>`);
+  const detail=await renderArticle(`---\ndate: "2026 年 10 月 12 日 & 秋"\n---\n\n${article.split('---').slice(2).join('---')}`,'moss-zen',{
+   projectRoot:process.cwd(),themesRootPath:current.themes,repository:new ThemeRenderRepository(current.renders),checker:passedChecker,ai:ai(html),
+  });
+  expect(detail.status).toBe('rule-passed');
+  expect(detail.record.artifact.bodyHtml).toContain('2026 年 10 月 12 日 &amp; 秋');
+  expect(detail.record.artifact.bodyHtml).toContain('<p style="font-size:15px;line-height:1.9;"><span leaf="">河边记录者</span></p>');
+  expect(detail.record.artifact.bodyHtml).toContain('border-top:1px solid #B42318');
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},120_000);
+
+it('可选字段处理不删原文标记、未知标记或带正文的标记行',async()=>{
+ const current=env();
+ try {
+  const html=withOptionalMetadata(validHtml).replace('</section>','<p style="font-size:16px;line-height:1.9;"><span leaf="">正文里的 {{author}}。</span></p><p style="font-size:16px;line-height:1.9;"><span leaf="">{{mystery}}</span></p></section>');
+  const detail=await run(html,current);
+  expect(detail.status).toBe('needs-fix');
+  expect(detail.record.artifact.bodyHtml).toContain('正文里的 {{author}}。');
+  expect(detail.record.artifact.bodyHtml).toContain('{{mystery}}');
+  const literal=await renderArticle('原文保留这个符号。\n\n{{author}}','moss-zen',{
+   projectRoot:process.cwd(),themesRootPath:current.themes,repository:new ThemeRenderRepository(current.renders),checker:passedChecker,
+   ai:ai('<section style="max-width:677px;margin:0 auto;padding:20px;"><p style="font-size:16px;line-height:1.9;"><span leaf="">原文保留这个符号。</span></p>'+optionalLine('author')+'</section>'),
+  });
+  expect(literal.record.artifact.bodyHtml).toContain('{{author}}');
+  expect(literal.record.fidelity.missing).toEqual([]);
+  expect(literal.status).toBe('needs-fix');
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},120_000);
+
+it('省略可选字段不会掩盖原始产物中的违规结构或样式',async()=>{
+ const current=env();
+ try {
+  const html=withOptionalMetadata(validHtml).replace('border-top:1px solid #B42318','position:absolute;border-top:1px solid #B42318');
+  const detail=await run(html,current);
+  expect(detail.record.artifact.bodyHtml).toContain('position:absolute');
+  expect(detail.status).toBe('needs-fix');
+  expect(detail.record.validate.errorCount).toBeGreaterThan(0);
+ } finally {rmSync(current.themes,{recursive:true,force:true});rmSync(current.renders,{recursive:true,force:true});}
+},120_000);
+
 it('受控文章套用主题后通过规格校验并保存完整记录',async()=>{
  const current=env();
  const detail=await run(validHtml,current);
@@ -50,7 +155,7 @@ it('受控文章套用主题后通过规格校验并保存完整记录',async()=
  expect(detail.record.fidelity).toMatchObject({ok:true,missing:[]});
  expect(detail.record.theme).toMatchObject({id:'moss-zen',origin:'seed'});
  expect(detail.record.theme.themeMarkdown.length).toBeGreaterThan(1000);
- expect(detail.record.skill).toMatchObject({promptVersion:'gzh-theme-render-v2-paper',commit:'9accaf5039f29aade5d8ca315739b42845b11225'});
+ expect(detail.record.skill).toMatchObject({promptVersion:'gzh-theme-render-v4-source-toc',commit:'9accaf5039f29aade5d8ca315739b42845b11225'});
  expect(detail.record.rawOutputHash).toMatch(/^[a-f0-9]{64}$/);
 },120_000);
 
